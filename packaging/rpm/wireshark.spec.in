@@ -273,6 +273,7 @@ development of Wireshark scripts and plugins.
 %prep
 %setup -q -n %{name}-%{package_version}
 
+%build
 # SUSE has a wrong bindir for cmake. Set it to the right one.
 %if 0%{?suse_version}
 %define _bindir /usr/bin
