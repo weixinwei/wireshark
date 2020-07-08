@@ -650,6 +650,8 @@ static int hf_msg_osd_ping_mapepoch		 = -1;
 static int hf_msg_osd_ping_peerepoch		 = -1;
 static int hf_msg_osd_ping_op			 = -1;
 static int hf_msg_osd_ping_time			 = -1;
+static int hf_msg_osd_ping_padding_size		 = -1;
+static int hf_msg_osd_ping_padding_data		 = -1;
 static int hf_msg_osd_boot			 = -1;
 static int hf_msg_osd_boot_addr_back		 = -1;
 static int hf_msg_osd_boot_addr_cluster		 = -1;
@@ -5878,6 +5880,7 @@ guint c_dissect_msg_osd_ping(proto_tree *root,
 	proto_tree *tree;
 	guint off = 0;
 	c_osd_ping_op op;
+	guint padding_size = 0;
 
 	/* ceph:/src/messages/MOSDPing.h */
 
@@ -5894,22 +5897,41 @@ guint c_dissect_msg_osd_ping(proto_tree *root,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
 
-	proto_tree_add_item(tree, hf_msg_osd_ping_peerepoch,
-			    tvb, off, 4, ENC_LITTLE_ENDIAN);
-	off += 4;
-
-	op = (c_osd_ping_op)tvb_get_guint8(tvb, off);
-	proto_tree_add_item(tree, hf_msg_osd_ping_op,
-			    tvb, off, 1, ENC_LITTLE_ENDIAN);
-	off += 1;
-
-	off = c_dissect_osd_peerstat(tree, tvb, off, data);
-
-	if (data->header.ver >= 2)
+	if (data->header.ver < 4)
 	{
-		proto_tree_add_item(tree, hf_msg_osd_ping_time,
-				    tvb, off, 8, ENC_LITTLE_ENDIAN);
-		off += 8;
+		proto_tree_add_item(tree, hf_msg_osd_ping_peerepoch,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		op = (c_osd_ping_op)tvb_get_guint8(tvb, off);
+		proto_tree_add_item(tree, hf_msg_osd_ping_op,
+				    tvb, off, 1, ENC_LITTLE_ENDIAN);
+		off += 1;
+
+		off = c_dissect_osd_peerstat(tree, tvb, off, data);
+	}
+	else
+	{
+		op = (c_osd_ping_op)tvb_get_guint8(tvb, off);
+		proto_tree_add_item(tree, hf_msg_osd_ping_op,
+				    tvb, off, 1, ENC_LITTLE_ENDIAN);
+		off += 1;
+	}
+
+	proto_tree_add_item(tree, hf_msg_osd_ping_time,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	if (data->header.ver >= 3)
+	{
+		padding_size = tvb_get_guint32(tvb, off, ENC_LITTLE_ENDIAN);
+		proto_tree_add_item(tree, hf_msg_osd_ping_padding_size,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		proto_tree_add_item(tree, hf_msg_osd_ping_padding_data,
+				    tvb, off, padding_size, ENC_NA);
+		off += padding_size;
 	}
 
 	c_append_text(data, ti, ", Operation: %s", c_osd_ping_op_string(op));
@@ -10097,6 +10119,16 @@ proto_register_ceph(void)
 		{ &hf_msg_osd_ping_time, {
 			"Timestamp", "ceph.msg.osd.ping.time",
 			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_osd_ping_padding_size, {
+			"Padding Size", "ceph.msg.osd.ping.paddingsize",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_osd_ping_padding_data, {
+			"Padding Data", "ceph.msg.osd.ping.paddingdata",
+			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
 		{ &hf_msg_osd_boot, {
