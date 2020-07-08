@@ -831,6 +831,7 @@ static const guint8 *C_BANNER = (const guint8*)"ceph v";
 
 #define C_BANNER_SIZE     9
 #define C_BANNER_SIZE_MIN 6
+#define C_SIZE_MIN        8
 
 /** Feature Flags */
 /* Transmuted from ceph:/src/include/ceph_features.h */
@@ -1378,7 +1379,8 @@ const char *c_node_type_abbr_string(c_node_type val)
 #define C_MON_SUB_FLAG_ONETIME  0x01
 
 typedef enum _c_state {
-	C_STATE_NEW,
+	C_STATE_INIT,
+	C_STATE_HANDSHAKE,
 	C_STATE_OPEN,
 	C_STATE_SEQ /* Waiting for sequence number. */
 } c_state;
@@ -1412,7 +1414,7 @@ void c_node_init(c_node *n)
 	clear_address(&n->addr);
 	c_node_name_init(&n->name);
 	n->port = 0xFFFF;
-	n->state = C_STATE_NEW;
+	n->state = C_STATE_INIT;
 }
 
 static
@@ -1429,6 +1431,7 @@ c_node *c_node_copy(c_node *src, c_node *dst)
 typedef struct _c_conv_data {
 	c_node client; /* The node that initiated this connection. */
 	c_node server; /* The other node. */
+	gboolean new_conversation; /* Whether the ceph conversation is new */
 } c_conv_data;
 
 static
@@ -1534,7 +1537,12 @@ c_pkt_data_init(c_pkt_data *d, packet_info *pinfo, guint off)
 	if (!d->convd) /* New conversation. */
 	{
 		d->convd = c_conv_data_new();
+		d->convd->new_conversation = TRUE;
 		conversation_add_proto_data(d->conv, proto_ceph, d->convd);
+	}
+	else
+	{
+		d->convd->new_conversation = FALSE;
 	}
 
 	/*
@@ -6781,7 +6789,7 @@ guint c_dissect_msgr(proto_tree *tree,
 		break;
 	case C_TAG_CLOSE:
 		c_set_type(data, "CLOSE");
-		data->src->state = C_STATE_NEW;
+		data->src->state = C_STATE_HANDSHAKE;
 		break;
 	case C_TAG_MSG:
 		off = c_dissect_msg(tree, tvb, off, data);
@@ -6860,7 +6868,7 @@ guint c_dissect_pdu(proto_tree *root,
 
 	switch (data->src->state)
 	{
-		case C_STATE_NEW:
+		case C_STATE_HANDSHAKE:
 			off = c_dissect_new(tree, tvb, off, data);
 			break;
 		case C_STATE_SEQ:
@@ -6916,7 +6924,7 @@ guint c_pdu_end(tvbuff_t *tvb, packet_info *pinfo, guint off, c_pkt_data *data)
 	 * see whether the info after the first entity_addr_t looks like
 	 * another entity_addr_t.
 	 */
-	if (data->convd->client.port == 0xFFFF) {
+	if (data->convd->client.state == C_STATE_HANDSHAKE) {
 		if (!tvb_bytes_exist(tvb, off, C_BANNER_SIZE + C_SIZE_ENTITY_ADDR + 8 + 2))
 			return C_NEEDMORE;
 
@@ -6940,10 +6948,27 @@ guint c_pdu_end(tvbuff_t *tvb, packet_info *pinfo, guint off, c_pkt_data *data)
 			data->dst = &data->convd->client;
 		}
 	}
+	else
+	{
+		/* check min size of packet */
+		if (!tvb_bytes_exist(tvb, off, C_SIZE_MIN))
+			return C_NEEDMORE;
+
+		/* do not care port */
+		if (data->convd->client.port == 0xFFFF) {
+			copy_address_wmem(wmem_file_scope(), &data->convd->client.addr, &pinfo->src);
+			data->convd->client.port = pinfo->srcport;
+			copy_address_wmem(wmem_file_scope(), &data->convd->server.addr, &pinfo->dst);
+			data->convd->server.port = pinfo->destport;
+			data->src = &data->convd->client;
+			data->dst = &data->convd->server;
+		}
+	}
+	
 
 	switch (data->src->state)
 	{
-	case C_STATE_NEW:
+	case C_STATE_HANDSHAKE:
 		if (c_from_client(data))
 		{
 			if (!tvb_bytes_exist(tvb, off+C_BANNER_SIZE+C_HELLO_OFF_AUTHLEN, 4))
@@ -7009,7 +7034,7 @@ guint c_pdu_end(tvbuff_t *tvb, packet_info *pinfo, guint off, c_pkt_data *data)
 
 static
 int dissect_ceph(tvbuff_t *tvb, packet_info *pinfo,
-		 proto_tree *tree, void *pdata _U_)
+		 proto_tree *tree, void *pdata _U_, gboolean handshake_of_ceph)
 {
 	guint off, offt, offt2;
 	c_pkt_data data;
@@ -7021,6 +7046,27 @@ int dissect_ceph(tvbuff_t *tvb, packet_info *pinfo,
 	while (off < tvb_reported_length(tvb))
 	{
 		c_pkt_data_init(&data, pinfo, off);
+
+		/*
+			If this is the handshake packet of ceph we captured, that is
+			to say, we got a complete ceph tcp-stream(existing C_BANNER),
+			we can follow the previous logic(set state to C_STATE_HANDSHAKE).
+			Otherwise, we should set state to C_STATE_OPEN, thus goto
+			c_dissect_msgr() to dissect ceph msgr.
+		*/
+		if (data.convd->new_conversation)
+		{
+			if (handshake_of_ceph)
+			{
+				data.convd->client.state = C_STATE_HANDSHAKE;
+				data.convd->server.state = C_STATE_HANDSHAKE;
+			}
+			else
+			{
+				data.convd->client.state = C_STATE_OPEN;
+				data.convd->server.state = C_STATE_OPEN;
+			}
+		}
 
 		/* Save snapshot before dissection changes it. */
 		/*
@@ -7076,17 +7122,31 @@ int dissect_ceph(tvbuff_t *tvb, packet_info *pinfo,
 static
 int dissect_ceph_old(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-	dissect_ceph(tvb, pinfo, tree, data);
+	dissect_ceph(tvb, pinfo, tree, data, FALSE);
 	return tvb_captured_length(tvb);
 }
+
+static guint32 ceph_ms_bind_port_min	= 6789;
+static guint32 ceph_ms_bind_port_max	= 7300;
 
 static
 gboolean dissect_ceph_heur(tvbuff_t *tvb, packet_info *pinfo,
 			   proto_tree *tree, void *data)
 {
 	conversation_t *conv;
+	gint has_ceph_banner = 0; /* exist tcp connection banner */
+	gint in_ceph_port_range = 0; /* in ceph bind port range */
+	guint32 srcport = pinfo->srcport; /* tcp src port */
+	guint32 dstport = pinfo->destport; /* tcp dst port */
 
-	if (tvb_memeql(tvb, 0, C_BANNER, C_BANNER_SIZE_MIN) != 0) return FALSE;
+	has_ceph_banner = tvb_memeql(tvb, 0, C_BANNER, C_BANNER_SIZE_MIN) == 0;
+
+	in_ceph_port_range = ((srcport >= ceph_ms_bind_port_min
+				&& srcport <= ceph_ms_bind_port_max) ||
+			      (dstport >= ceph_ms_bind_port_min
+				&& dstport <= ceph_ms_bind_port_max));
+
+	if (in_ceph_port_range == 0 && has_ceph_banner == 0) return FALSE;
 
 	/*** It's ours! ***/
 
@@ -7094,7 +7154,7 @@ gboolean dissect_ceph_heur(tvbuff_t *tvb, packet_info *pinfo,
 	/* Mark it as ours. */
 	conversation_set_dissector(conv, ceph_handle);
 
-	dissect_ceph(tvb, pinfo, tree, data);
+	dissect_ceph(tvb, pinfo, tree, data, has_ceph_banner);
 	return TRUE;
 }
 
