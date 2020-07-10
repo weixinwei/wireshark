@@ -66,6 +66,7 @@ static dissector_handle_t ceph_handle;
 /* Initialize the protocol and registered fields */
 static int proto_ceph				 = -1;
 static int hf_filter_data			 = -1;
+static int hf_dummy				 = -1;
 static int hf_node_id				 = -1;
 static int hf_node_type				 = -1;
 static int hf_node_nonce			 = -1;
@@ -264,6 +265,52 @@ static int hf_osdstat_hbin			 = -1;
 static int hf_osdstat_hbout			 = -1;
 static int hf_osdstat_opqueue			 = -1;
 static int hf_osdstat_fsperf			 = -1;
+static int hf_osdstat_epoch			 = -1;
+static int hf_osdstat_seq			 = -1;
+static int hf_osdstat_pgnums			 = -1;
+static int hf_osdstat_kbuseddata		 = -1;
+static int hf_osdstat_kbusedomap		 = -1;
+static int hf_osdstat_kbusedmeta		 = -1;
+static int hf_objectstore_statfs		 = -1;
+static int hf_objectstore_total			 = -1;
+static int hf_objectstore_available		 = -1;
+static int hf_objectstore_internallyreserved	 = -1;
+static int hf_objectstore_allocated		 = -1;
+static int hf_objectstore_datastored		 = -1;
+static int hf_objectstore_datacompressed	 = -1;
+static int hf_objectstore_datacompressedallocated= -1;
+static int hf_objectstore_datacompressedoriginal = -1;
+static int hf_objectstore_omapallocated		 = -1;
+static int hf_objectstore_internalmetadata	 = -1;
+static int hf_osdstat_osdalerts			 = -1;
+static int hf_osdstat_osdalertskey		 = -1;
+static int hf_osdstat_osdalertsvalue		 = -1;
+static int hf_osdstat_shardsrepairednums	 = -1;
+static int hf_osdstat_osdnums			 = -1;
+static int hf_osdstat_perpoolosdnums		 = -1;
+static int hf_osdstat_hbtime			 = -1;
+static int hf_osdstat_osdid			 = -1;
+static int hf_osdstat_hbtime_lastupdate		 = -1;
+static int hf_osdstat_hbtime_back_avg_1min	 = -1;
+static int hf_osdstat_hbtime_back_avg_5min	 = -1;
+static int hf_osdstat_hbtime_back_avg_15min	 = -1;
+static int hf_osdstat_hbtime_back_min_1min	 = -1;
+static int hf_osdstat_hbtime_back_min_5min	 = -1;
+static int hf_osdstat_hbtime_back_min_15min	 = -1;
+static int hf_osdstat_hbtime_back_max_1min	 = -1;
+static int hf_osdstat_hbtime_back_max_5min	 = -1;
+static int hf_osdstat_hbtime_back_max_15min	 = -1;
+static int hf_osdstat_hbtime_back_last		 = -1;
+static int hf_osdstat_hbtime_front_avg_1min	 = -1;
+static int hf_osdstat_hbtime_front_avg_5min	 = -1;
+static int hf_osdstat_hbtime_front_avg_15min	 = -1;
+static int hf_osdstat_hbtime_front_min_1min	 = -1;
+static int hf_osdstat_hbtime_front_min_5min	 = -1;
+static int hf_osdstat_hbtime_front_min_15min	 = -1;
+static int hf_osdstat_hbtime_front_max_1min	 = -1;
+static int hf_osdstat_hbtime_front_max_5min	 = -1;
+static int hf_osdstat_hbtime_front_max_15min	 = -1;
+static int hf_osdstat_hbtime_front_last		 = -1;
 static int hf_osdmap				 = -1;
 static int hf_osdmap_client			 = -1;
 static int hf_osdmap_fsid			 = -1;
@@ -769,6 +816,9 @@ static gint ett_osd_info		   = -1;
 static gint ett_osd_xinfo		   = -1;
 static gint ett_perfstat		   = -1;
 static gint ett_osdstat			   = -1;
+static gint ett_objectstore		   = -1;
+static gint ett_osd_alerts		   = -1;
+static gint ett_osd_hbtime		   = -1;
 static gint ett_pg_stat			   = -1;
 static gint ett_osd_map			   = -1;
 static gint ett_osd_map_client		   = -1;
@@ -3624,6 +3674,98 @@ guint c_dissect_perfstat(proto_tree *root, int hf,
 	return off;
 }
 
+/** Dissect an store_statfs_t. */
+static
+guint c_dissect_objectstore_statfs(proto_tree *root,
+				   tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+
+	/* store_statfs_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf_objectstore_statfs, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_objectstore);
+
+	off = c_dissect_encoded(tree, &enc, 1, 1, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_objectstore_total, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_objectstore_available, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_objectstore_internallyreserved, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_objectstore_allocated, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_objectstore_datastored, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_objectstore_datacompressed, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_objectstore_datacompressedallocated, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_objectstore_datacompressedoriginal, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_objectstore_omapallocated, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_objectstore_internalmetadata, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an osd_alerts */
+static
+guint c_dissect_osd_alerts(proto_tree *root,
+			   tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	guint32 i, j;
+
+	/* osd_alerts from ceph:/src/osd/osd_types.h */
+
+	i = tvb_get_letohl(tvb, off);
+	off += 4;
+	while (i--)
+	{
+		gint32 id;
+
+		ti   = proto_tree_add_item(root, hf_osdstat_osdalerts, tvb, off, -1, ENC_NA);
+		tree = proto_item_add_subtree(ti, ett_osd_alerts);
+
+		id = tvb_get_letohl(tvb, off);
+		off += 4;
+
+		j = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (j--)
+		{
+			off = c_dissect_str(tree, hf_osdstat_osdalertskey, NULL, tvb, off);
+			off = c_dissect_str(tree, hf_osdstat_osdalertsvalue, NULL, tvb, off);
+		}
+
+		proto_item_append_text(ti, ", ID: %"G_GINT32_MODIFIER"d", id);
+
+		proto_item_set_end(ti, tvb, off);
+	}
+
+	return off;
+}
+
 /** Dissect an osd_stat_t. */
 static
 guint c_dissect_osd_stat(proto_tree *root,
@@ -3639,7 +3781,7 @@ guint c_dissect_osd_stat(proto_tree *root,
 	ti   = proto_tree_add_item(root, hf_osdstat, tvb, off, -1, ENC_NA);
 	tree = proto_item_add_subtree(ti, ett_pg_stat);
 
-	off = c_dissect_encoded(tree, &enc, 2, 4, tvb, off, data);
+	off = c_dissect_encoded(tree, &enc, 2, 14, tvb, off, data);
 
 	proto_tree_add_item(tree, hf_osdstat_kb,
 			    tvb, off, 8, ENC_LITTLE_ENDIAN);
@@ -3694,6 +3836,142 @@ guint c_dissect_osd_stat(proto_tree *root,
 
 	if (enc.version >= 4)
 		off = c_dissect_perfstat(tree, hf_osdstat_fsperf, tvb, off, data);
+
+	if (enc.version >= 6)
+	{
+		proto_tree_add_item(tree, hf_osdstat_epoch, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		proto_tree_add_item(tree, hf_osdstat_seq, tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+	}
+
+	if (enc.version >= 7)
+	{
+		proto_tree_add_item(tree, hf_osdstat_pgnums, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 8)
+	{
+		proto_tree_add_item(tree, hf_osdstat_kbuseddata, tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+		proto_tree_add_item(tree, hf_osdstat_kbusedomap, tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+		proto_tree_add_item(tree, hf_osdstat_kbusedmeta, tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+	}
+
+	if (enc.version >= 9)
+	{
+		off = c_dissect_objectstore_statfs(tree, tvb, off, data);
+	}
+
+	if (enc.version >= 10)
+	{
+		off = c_dissect_osd_alerts(tree, tvb, off, data);
+	}
+
+	if (enc.version >= 11)
+	{
+		proto_tree_add_item(tree, hf_osdstat_shardsrepairednums, tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+	}
+
+	if (enc.version >= 12)
+	{
+		proto_tree_add_item(tree, hf_osdstat_osdnums, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		proto_tree_add_item(tree, hf_osdstat_perpoolosdnums, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 13)
+	{
+		proto_tree_add_item(tree, hf_dummy, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 14)
+	{
+		proto_item *ti2;
+		proto_tree *subtree;
+
+		ti2 = proto_tree_add_item(tree, hf_osdstat_hbtime, tvb, off, -1, ENC_NA);
+		subtree = proto_item_add_subtree(ti2, ett_osd_hbtime);
+
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			proto_tree_add_item(subtree, hf_osdstat_osdid, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_lastupdate, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_back_avg_1min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_back_avg_5min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_back_avg_15min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_back_min_1min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_back_min_5min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_back_min_15min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_back_max_1min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_back_max_5min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_back_max_15min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_back_last, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_front_avg_1min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_front_avg_5min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_front_avg_15min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_front_min_1min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_front_min_5min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_front_min_15min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_front_max_1min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_front_max_5min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_front_max_15min, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_osdstat_hbtime_front_last, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+		}
+	}
 
 	c_warn_size(tree, tvb, off, enc.end, data);
 	off = enc.end;
@@ -7238,9 +7516,10 @@ guint c_dissect_msgrV1(proto_tree *tree,
  */
 static
 guint c_dissect_msgrV2(proto_tree *tree,
-		       tvbuff_t *tvb, guint off, c_pkt_data *data)
+		       tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
 {
 	proto_item *ti;
+	(void) ti;
 	c_tag tag;
 	guint unknowntagcount = 1;
 
@@ -7577,6 +7856,11 @@ proto_register_ceph(void)
 			"Filter Data", "ceph.filter",
 			FT_NONE, BASE_NONE, NULL, 0,
 			"A bunch of properties for convenient filtering.", HFILL
+		} },
+		{ &hf_dummy, {
+			"Dummy", "ceph.dummy",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
 		} },
 		{ &hf_node_id, {
 			"ID", "ceph.node_id",
@@ -8492,6 +8776,11 @@ proto_register_ceph(void)
 			FT_UINT32, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
+		{ &hf_osdstat_trimming, {
+			"Number Trimming", "ceph.osdstat.trimming",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
 		{ &hf_osdstat_hbin, {
 			"Heartbeats In", "ceph.osdstat.hbin",
 			FT_UINT32, BASE_DEC, NULL, 0,
@@ -8512,8 +8801,233 @@ proto_register_ceph(void)
 			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
-		{ &hf_osdstat_trimming, {
-			"Number Trimming", "ceph.osdstat.trimming",
+		{ &hf_osdstat_epoch, {
+			"Epoch", "ceph.osdstat.epoch",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_seq, {
+			"Seq", "ceph.osdstat.seq",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_pgnums, {
+			"PG Nums", "ceph.osdstat.pgnums",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_kbuseddata, {
+			"KiB Data Used", "ceph.osdstat.kbuseddata",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_kbusedomap, {
+			"KiB Omap Used", "ceph.osdstat.kbusedomap",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_kbusedmeta, {
+			"KiB Meta Used", "ceph.osdstat.kbusedmeta",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_statfs, {
+			"ObjectStore Stat FS", "ceph.objectstore.statfs",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_total, {
+			"Total", "ceph.objectstore.total",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_available, {
+			"Available", "ceph.objectstore.available",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_internallyreserved, {
+			"Internally Reserved", "ceph.objectstore.internallyreserved",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_allocated, {
+			"Allocated", "ceph.objectstore.allocated",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_datastored, {
+			"Data Stored", "ceph.objectstore.datastored",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_datacompressed, {
+			"Data Compressed", "ceph.objectstore.datacompressed",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_datacompressedallocated, {
+			"Data Compressed Allocated", "ceph.objectstore.datacompressedallocated",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_datacompressedoriginal, {
+			"Data Compressed Original", "ceph.objectstore.datacompressedoriginal",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_omapallocated, {
+			"Omap Allocated", "ceph.objectstore.omapallocated",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_objectstore_internalmetadata, {
+			"Internal Metadata", "ceph.objectstore.internalmetadata",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_osdalerts, {
+			"OSD Alerts", "ceph.osdstat.osdalerts",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_osdalertskey, {
+			"OSD Alerts Key", "ceph.osdstat.osdalertskey",
+			FT_STRING, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_osdalertsvalue, {
+			"OSD Alerts Value", "ceph.osdstat.osdalertsvalue",
+			FT_STRING, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_shardsrepairednums, {
+			"OSD Shards Repaired Nums", "ceph.osdstat.shardsrepairednums",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_osdnums, {
+			"OSD Nums", "ceph.osdstat.osdnums",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_perpoolosdnums, {
+			"Per Pool OSD Nums", "ceph.osdstat.perpoolosdnums",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime, {
+			"Heartbeats Time", "ceph.osdstat.hbtime",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_osdid, {
+			"OSD ID", "ceph.osdstat.osdi",
+			FT_INT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_lastupdate, {
+			"Heartbeats Last Update Time", "ceph.osdstat.hbtime.lastupdate",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_back_avg_1min, {
+			"Heartbeats Back Avg 1min Time", "ceph.osdstat.hbtime.backavg1min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_back_avg_5min, {
+			"Heartbeats Back Avg 5min Time", "ceph.osdstat.hbtime.backavg5min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_back_avg_15min, {
+			"Heartbeats Back Avg 15min Time", "ceph.osdstat.hbtime.backavg15min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_back_min_1min, {
+			"Heartbeats Back Min 1min Time", "ceph.osdstat.hbtime.backmin1min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_back_min_5min, {
+			"Heartbeats Back Min 5min Time", "ceph.osdstat.hbtime.backmin5min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_back_min_15min, {
+			"Heartbeats Back Min 15min Time", "ceph.osdstat.hbtime.backmin15min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_back_max_1min, {
+			"Heartbeats Back Max 1min Time", "ceph.osdstat.hbtime.backmax1min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_back_max_5min, {
+			"Heartbeats Back Max 5min Time", "ceph.osdstat.hbtime.backmax5min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_back_max_15min, {
+			"Heartbeats Back Max 15min Time", "ceph.osdstat.hbtime.backmax15min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_back_last, {
+			"Heartbeats Back Last Time", "ceph.osdstat.hbtime.backlast",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_front_avg_1min, {
+			"Heartbeats Front Avg 1min Time", "ceph.osdstat.hbtime.frontavg1min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_front_avg_5min, {
+			"Heartbeats Front Avg 5min Time", "ceph.osdstat.hbtime.frontavg5min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_front_avg_15min, {
+			"Heartbeats Front Avg 15min Time", "ceph.osdstat.hbtime.frontavg15min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_front_min_1min, {
+			"Heartbeats Front Min 1min Time", "ceph.osdstat.hbtime.frontmin1min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_front_min_5min, {
+			"Heartbeats Front Min 5min Time", "ceph.osdstat.hbtime.frontmin5min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_front_min_15min, {
+			"Heartbeats Front Min 15min Time", "ceph.osdstat.hbtime.frontmin15min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_front_max_1min, {
+			"Heartbeats Front Max 1min Time", "ceph.osdstat.hbtime.frontmax1min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_front_max_5min, {
+			"Heartbeats Front Max 5min Time", "ceph.osdstat.hbtime.frontmax5min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_front_max_15min, {
+			"Heartbeats Front Max 15min Time", "ceph.osdstat.hbtime.frontmax15min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_osdstat_hbtime_front_last, {
+			"Heartbeats Front Last Time", "ceph.osdstat.hbtime.frontlast",
 			FT_UINT32, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
@@ -10891,6 +11405,9 @@ proto_register_ceph(void)
 		&ett_osd_xinfo,
 		&ett_perfstat,
 		&ett_osdstat,
+		&ett_objectstore,
+		&ett_osd_alerts,
+		&ett_osd_hbtime,
 		&ett_pg_stat,
 		&ett_osd_map,
 		&ett_osd_map_client,
