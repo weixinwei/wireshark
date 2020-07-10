@@ -422,7 +422,8 @@ static int hf_statsum_omap			 = -1;
 static int hf_statsum_hitset_archive		 = -1;
 static int hf_connect				 = -1;
 static int hf_connect_reply			 = -1;
-static int hf_tag				 = -1;
+static int hf_tag_v1				 = -1;
+static int hf_tag_v2				 = -1;
 static int hf_ack				 = -1;
 static int hf_seq_existing			 = -1;
 static int hf_seq_new				 = -1;
@@ -944,28 +945,55 @@ typedef guint16 c_inet;
 VALUE_STRING_ENUM(c_inet_strings);
 VALUE_STRING_ARRAY(c_inet_strings);
 
-/** Message Tags */
-#define c_tag_strings_VALUE_STRING_LIST(V) \
-	V(C_TAG_READY,		0x01, "server->client: ready for messages")		     \
-	V(C_TAG_RESETSESSION,	0x02, "server->client: reset, try again")		     \
-	V(C_TAG_WAIT,		0x03, "server->client: wait for racing incoming connection") \
-	V(C_TAG_RETRY_SESSION,	0x04, "server->client + cseq: try again with higher cseq")   \
-	V(C_TAG_RETRY_GLOBAL,	0x05, "server->client + gseq: try again with higher gseq")   \
-	V(C_TAG_CLOSE,		0x06, "closing pipe")					     \
-	V(C_TAG_MSG,		0x07, "message")					     \
-	V(C_TAG_ACK,		0x08, "message ack")					     \
-	V(C_TAG_KEEPALIVE,	0x09, "just a keepalive byte!")				     \
-	V(C_TAG_BADPROTOVER,	0x0A, "bad protocol version")				     \
-	V(C_TAG_BADAUTHORIZER,	0x0B, "bad authorizer")					     \
-	V(C_TAG_FEATURES,	0x0C, "insufficient features")				     \
-	V(C_TAG_SEQ,		0x0D, "64-bit int follows with seen seq number")	     \
-	V(C_TAG_KEEPALIVE2,	0x0E, "keepalive2")					     \
-	V(C_TAG_KEEPALIVE2_ACK, 0x0F, "keepalive2 reply")				     \
-
 typedef gint c_tag;
-VALUE_STRING_ENUM(c_tag_strings);
-VALUE_STRING_ARRAY(c_tag_strings);
-static value_string_ext c_tag_strings_ext = VALUE_STRING_EXT_INIT(c_tag_strings);
+/** Message V1 Tags */
+#define c_tag_v1_strings_VALUE_STRING_LIST(V) \
+	V(C_TAG_V1_READY,		0x01, "server->client: ready for messages")		     \
+	V(C_TAG_V1_RESETSESSION,	0x02, "server->client: reset, try again")		     \
+	V(C_TAG_V1_WAIT,		0x03, "server->client: wait for racing incoming connection") \
+	V(C_TAG_V1_RETRY_SESSION,	0x04, "server->client + cseq: try again with higher cseq")   \
+	V(C_TAG_V1_RETRY_GLOBAL,	0x05, "server->client + gseq: try again with higher gseq")   \
+	V(C_TAG_V1_CLOSE,		0x06, "closing pipe")					     \
+	V(C_TAG_V1_MSG,			0x07, "message")					     \
+	V(C_TAG_V1_ACK,			0x08, "message ack")					     \
+	V(C_TAG_V1_KEEPALIVE,		0x09, "just a keepalive byte!")				     \
+	V(C_TAG_V1_BADPROTOVER,		0x0A, "bad protocol version")				     \
+	V(C_TAG_V1_BADAUTHORIZER,	0x0B, "bad authorizer")					     \
+	V(C_TAG_V1_FEATURES,		0x0C, "insufficient features")				     \
+	V(C_TAG_V1_SEQ,			0x0D, "64-bit int follows with seen seq number")	     \
+	V(C_TAG_V1_KEEPALIVE2,		0x0E, "keepalive2")					     \
+	V(C_TAG_V1_KEEPALIVE2_ACK,	0x0F, "keepalive2 reply")				     \
+
+VALUE_STRING_ENUM(c_tag_v1_strings);
+VALUE_STRING_ARRAY(c_tag_v1_strings);
+static value_string_ext c_tag_v1_strings_ext = VALUE_STRING_EXT_INIT(c_tag_v1_strings);
+
+/** Message V2 Tags */
+#define c_tag_v2_strings_VALUE_STRING_LIST(V) \
+	V(C_TAG_V2_HELLO,			0x01, "")		     \
+	V(C_TAG_V2_AUTH_REQUEST,		0x02, "")		     \
+	V(C_TAG_V2_AUTH_BAD_METHOD,		0x03, "") \
+	V(C_TAG_V2_AUTH_REPLY_MORE,		0x04, "")   \
+	V(C_TAG_V2_AUTH_REQUEST_MORE,		0x05, "")   \
+	V(C_TAG_V2_AUTH_DONE,			0x06, "")					     \
+	V(C_TAG_V2_AUTH_SIGNATURE,		0x07, "")					     \
+	V(C_TAG_V2_CLIENT_IDENT,		0x08, "")					     \
+	V(C_TAG_V2_SERVER_IDENT,		0x09, "")				     \
+	V(C_TAG_V2_IDENT_MISSING_FEATURES,	0x0A, "")				     \
+	V(C_TAG_V2_SESSION_RECONNECT,		0x0B, "")					     \
+	V(C_TAG_V2_SESSION_RESET,		0x0C, "")				     \
+	V(C_TAG_V2_SESSION_RETRY,		0x0D, "")	     \
+	V(C_TAG_V2_SESSION_RETRY_GLOBAL,	0x0E, "")					     \
+	V(C_TAG_V2_SESSION_RECONNECT_OK,	0x0F, "")					     \
+	V(C_TAG_V2_WAIT, 			0x10, "")				     \
+	V(C_TAG_V2_MESSAGE, 			0x11, "")				     \
+	V(C_TAG_V2_KEEPALIVE2, 			0x12, "")				     \
+	V(C_TAG_V2_KEEPALIVE2_ACK, 		0x13, "")				     \
+	V(C_TAG_V2_ACK, 			0x14, "")				     \
+
+VALUE_STRING_ENUM(c_tag_v2_strings);
+VALUE_STRING_ARRAY(c_tag_v2_strings);
+static value_string_ext c_tag_v2_strings_ext = VALUE_STRING_EXT_INIT(c_tag_v2_strings);
 
 /* Extracted from the Ceph tree.
  *
@@ -7091,42 +7119,50 @@ guint c_dissect_new(proto_tree *tree,
 }
 
 static
-gboolean c_unknowntagnext(tvbuff_t *tvb, guint off)
+gboolean c_unknowntagv1next(tvbuff_t *tvb, guint off)
 {
 	if (!tvb_bytes_exist(tvb, off, 1)) return FALSE;
 
-	return (try_val_to_str_ext(tvb_get_guint8(tvb, off), &c_tag_strings_ext) == NULL);
+	return (try_val_to_str_ext(tvb_get_guint8(tvb, off), &c_tag_v1_strings_ext) == NULL);
 }
 
-/* Dissect a MSGR message.
+static
+gboolean c_unknowntagv2next(tvbuff_t *tvb, guint off)
+{
+	if (!tvb_bytes_exist(tvb, off, 1)) return FALSE;
+
+	return (try_val_to_str_ext(tvb_get_guint8(tvb, off), &c_tag_v2_strings_ext) == NULL);
+}
+
+/* Dissect a MSGR V1 message.
  *
  * MSGR is Ceph's outer message protocol.
  */
 static
-guint c_dissect_msgr(proto_tree *tree,
-		     tvbuff_t *tvb, guint off, c_pkt_data *data)
+guint c_dissect_msgrV1(proto_tree *tree,
+		       tvbuff_t *tvb, guint off, c_pkt_data *data)
 {
 	proto_item *ti;
 	c_tag tag;
 	guint unknowntagcount = 1;
 
 	tag = (c_tag)tvb_get_guint8(tvb, off);
-	ti = proto_tree_add_item(tree, hf_tag, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	ti = proto_tree_add_item(tree, hf_tag_v1, tvb, off, 1, ENC_LITTLE_ENDIAN);
 	off += 1;
 
 	switch (tag)
 	{
-	case C_TAG_READY:
-	case C_TAG_RESETSESSION:
-	case C_TAG_WAIT:
-	case C_TAG_RETRY_SESSION:
-	case C_TAG_RETRY_GLOBAL:
-	case C_TAG_BADPROTOVER:
-	case C_TAG_BADAUTHORIZER:
-	case C_TAG_FEATURES:
+	case C_TAG_V1_READY:
+	case C_TAG_V1_RESETSESSION:
+	case C_TAG_V1_WAIT:
+	case C_TAG_V1_RETRY_SESSION:
+	case C_TAG_V1_RETRY_GLOBAL:
+	case C_TAG_V1_BADPROTOVER:
+	case C_TAG_V1_BADAUTHORIZER:
+	case C_TAG_V1_FEATURES:
 		off = c_dissect_connect_reply(tree, tvb, off, data);
 		break;
-	case C_TAG_SEQ:
+	case C_TAG_V1_SEQ:
 		off = c_dissect_connect_reply(tree, tvb, off, data);
 		proto_tree_add_item(tree, hf_seq_existing,
 				    tvb, off, 8, ENC_LITTLE_ENDIAN);
@@ -7134,14 +7170,14 @@ guint c_dissect_msgr(proto_tree *tree,
 
 		data->dst->state = C_STATE_SEQ;
 		break;
-	case C_TAG_CLOSE:
+	case C_TAG_V1_CLOSE:
 		c_set_type(data, "CLOSE");
 		data->src->state = C_STATE_HANDSHAKE;
 		break;
-	case C_TAG_MSG:
+	case C_TAG_V1_MSG:
 		off = c_dissect_msg(tree, tvb, off, data);
 		break;
-	case C_TAG_ACK:
+	case C_TAG_V1_ACK:
 		c_set_type(data, "ACK");
 		proto_item_append_text(data->item_root, ", Seq: %u",
 				       tvb_get_letohl(tvb, off));
@@ -7149,12 +7185,12 @@ guint c_dissect_msgr(proto_tree *tree,
 				    tvb, off, 8, ENC_LITTLE_ENDIAN);
 		off += 8;
 		break;
-	case C_TAG_KEEPALIVE:
+	case C_TAG_V1_KEEPALIVE:
 		c_set_type(data, "KEEPALIVE");
 		/* No data. */
 		break;
-	case C_TAG_KEEPALIVE2:
-	case C_TAG_KEEPALIVE2_ACK:
+	case C_TAG_V1_KEEPALIVE2:
+	case C_TAG_V1_KEEPALIVE2_ACK:
 		c_set_type(data, "KEEPALIVE2");
 		proto_tree_add_item(tree, hf_keepalive_time,
 				    tvb, off, 8, ENC_LITTLE_ENDIAN);
@@ -7182,7 +7218,7 @@ guint c_dissect_msgr(proto_tree *tree,
 		*/
 
 		/* Batch multiple unknowns together. */
-		while (c_unknowntagnext(tvb, off)) {
+		while (c_unknowntagv1next(tvb, off)) {
 			off++;
 			unknowntagcount++;
 		}
@@ -7191,6 +7227,30 @@ guint c_dissect_msgr(proto_tree *tree,
 						    "UNKNOWN x%u",
 						    unknowntagcount));
 		expert_add_info(data->pinfo, ti, &ei_tag_unknown);
+	}
+
+	return off;
+}
+
+/* Dissect a MSGR V2 message.
+ *
+ * MSGR is Ceph's outer message protocol.
+ */
+static
+guint c_dissect_msgrV2(proto_tree *tree,
+		       tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	c_tag tag;
+	guint unknowntagcount = 1;
+
+	tag = (c_tag)tvb_get_guint8(tvb, off);
+	ti = proto_tree_add_item(tree, hf_tag_v1, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	off += 1;
+
+	switch (tag)
+	{
+		break;
 	}
 
 	return off;
@@ -7227,7 +7287,7 @@ guint c_dissect_pdu(proto_tree *root,
 			data->src->state = C_STATE_OPEN;
 			break;
 		default:
-			off = c_dissect_msgr(tree, tvb, off, data);
+			off = c_dissect_msgrV1(tree, tvb, off, data);
 	}
 
 	if (tree_filter) {
@@ -7330,27 +7390,27 @@ guint c_pdu_end(tvbuff_t *tvb, packet_info *pinfo, guint off, c_pkt_data *data)
 	default:
 		switch ((c_tag)tvb_get_guint8(tvb, off++))
 		{
-		case C_TAG_READY:
-		case C_TAG_RESETSESSION:
-		case C_TAG_WAIT:
-		case C_TAG_RETRY_SESSION:
-		case C_TAG_RETRY_GLOBAL:
-		case C_TAG_BADPROTOVER:
-		case C_TAG_BADAUTHORIZER:
-		case C_TAG_FEATURES:
+		case C_TAG_V1_READY:
+		case C_TAG_V1_RESETSESSION:
+		case C_TAG_V1_WAIT:
+		case C_TAG_V1_RETRY_SESSION:
+		case C_TAG_V1_RETRY_GLOBAL:
+		case C_TAG_V1_BADPROTOVER:
+		case C_TAG_V1_BADAUTHORIZER:
+		case C_TAG_V1_FEATURES:
 			if (!tvb_bytes_exist(tvb, off+C_CONNECT_REPLY_OFF_OFFLEN, 4))
 				return C_NEEDMORE;
 			return off + C_SIZE_CONNECT_REPLY
 				   + tvb_get_letohl(tvb, off+C_CONNECT_REPLY_OFF_OFFLEN);
-		case C_TAG_SEQ:
+		case C_TAG_V1_SEQ:
 			if (!tvb_bytes_exist(tvb, off+C_CONNECT_REPLY_OFF_OFFLEN, 4))
 				return C_NEEDMORE;
 			return off + C_SIZE_CONNECT_REPLY + 8
 				   + tvb_get_letohl(tvb, off+C_CONNECT_REPLY_OFF_OFFLEN);
-		case C_TAG_CLOSE:
+		case C_TAG_V1_CLOSE:
 			return off;
 			break;
-		case C_TAG_MSG:
+		case C_TAG_V1_MSG:
 		{
 			guint32 front_len, middle_len, data_len;
 
@@ -7363,15 +7423,15 @@ guint c_pdu_end(tvbuff_t *tvb, packet_info *pinfo, guint off, c_pkt_data *data)
 
 			return off + C_SIZE_HEAD+front_len+middle_len+data_len+C_SIZE_FOOT;
 		}
-		case C_TAG_ACK:
+		case C_TAG_V1_ACK:
 			return off + 8;
-		case C_TAG_KEEPALIVE:
+		case C_TAG_V1_KEEPALIVE:
 			return off;
-		case C_TAG_KEEPALIVE2:
-		case C_TAG_KEEPALIVE2_ACK:
+		case C_TAG_V1_KEEPALIVE2:
+		case C_TAG_V1_KEEPALIVE2_ACK:
 			return off+C_SIZE_TIMESPEC;
 		default:
-			while (c_unknowntagnext(tvb, off))
+			while (c_unknowntagv1next(tvb, off))
 				off++;
 
 			return off;
@@ -9306,9 +9366,14 @@ proto_register_ceph(void)
 			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
-		{ &hf_tag, {
-			"Tag", "ceph.tag",
-			FT_UINT8, BASE_HEX|BASE_EXT_STRING, &c_tag_strings_ext, 0,
+		{ &hf_tag_v1, {
+			"Tag V1", "ceph.tagv1",
+			FT_UINT8, BASE_HEX|BASE_EXT_STRING, &c_tag_v1_strings_ext, 0,
+			NULL, HFILL
+		} },
+		{ &hf_tag_v2, {
+			"Tag V2", "ceph.tagv2",
+			FT_UINT8, BASE_HEX|BASE_EXT_STRING, &c_tag_v2_strings_ext, 0,
 			NULL, HFILL
 		} },
 		{ &hf_ack, {
