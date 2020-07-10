@@ -69,6 +69,7 @@ static int hf_filter_data			 = -1;
 static int hf_node_id				 = -1;
 static int hf_node_type				 = -1;
 static int hf_node_nonce			 = -1;
+static int hf_entityaddr_type			 = -1;
 static int hf_entityinst_name			 = -1;
 static int hf_entityinst_addr			 = -1;
 static int hf_EntityName			 = -1;
@@ -177,8 +178,14 @@ static int hf_monmap_epoch			 = -1;
 static int hf_monmap_address			 = -1;
 static int hf_monmap_address_name		 = -1;
 static int hf_monmap_address_addr		 = -1;
+static int hf_monmap_node			 = -1;
 static int hf_monmap_changed			 = -1;
 static int hf_monmap_created			 = -1;
+static int hf_monmap_persistent_features	 = -1;
+static int hf_monmap_optional_features		 = -1;
+static int hf_monmap_mon_priority		 = -1;
+static int hf_monmap_mon_ranks			 = -1;
+static int hf_monmap_mon_min_release		 = -1;
 static int hf_pg_stat_ver			 = -1;
 static int hf_pg_stat_seq			 = -1;
 static int hf_pg_stat_epoch			 = -1;
@@ -749,6 +756,9 @@ static gint ett_pgpool_snapdel		   = -1;
 static gint ett_pgpool_property		   = -1;
 static gint ett_mon_map			   = -1;
 static gint ett_mon_map_address		   = -1;
+static gint ett_mon_map_features	   = -1;
+static gint ett_mon_map_moninfo		   = -1;
+static gint ett_mon_map_monranks	   = -1;
 static gint ett_osd_peerstat		   = -1;
 static gint ett_featureset		   = -1;
 static gint ett_featureset_name		   = -1;
@@ -930,7 +940,7 @@ static const guint8 *C_BANNER = (const guint8*)"ceph v";
 	V(C_IPv4, 0x0002, "IPv4") \
 	V(C_IPv6, 0x000A, "IPv6")
 
-typedef gint c_inet;
+typedef guint16 c_inet;
 VALUE_STRING_ENUM(c_inet_strings);
 VALUE_STRING_ARRAY(c_inet_strings);
 
@@ -1348,6 +1358,13 @@ C_MAKE_STRINGS(c_auth_proto, 2)
 
 C_MAKE_STRINGS(c_cephx_req_type, 4)
 
+/** Entityaddr type database. */
+#define c_entityaddr_type_strings_LIST(V, W) \
+	V(C_ENTITYADDR_TYPE_NONE,   0, W("NONE",	"none")) \
+	V(C_ENTITYADDR_TYPE_LEGACY, 1, W("LEGACY",	"legacy")) \
+	V(C_ENTITYADDR_TYPE_MSGR2,  2, W("MSGR2",	"msgr2")) \
+	V(C_ENTITYADDR_TYPE_ANY,    3, W("ANY",		"any"))
+
 /** Node type database. */
 #define c_node_type_strings_LIST(V, W) \
 	V(C_NODE_TYPE_UNKNOWN, 0x00, W("Unknown",		"unknown")) \
@@ -1361,12 +1378,19 @@ C_MAKE_STRINGS(c_cephx_req_type, 4)
 #define C_EXTRACT_2(a, b) b
 
 /** Extract the full names to create a value_string list. */
+#define c_entityaddr_type_strings_VALUE_STRING_LIST(V) \
+	c_entityaddr_type_strings_LIST(V, C_EXTRACT_1)
+
 #define c_node_type_strings_VALUE_STRING_LIST(V) \
 	c_node_type_strings_LIST(V, C_EXTRACT_1)
 
+C_MAKE_STRINGS(c_entityaddr_type, 2)
 C_MAKE_STRINGS(c_node_type, 2)
 
 /** Extract the abbreviations to create a value_string list. */
+#define c_entityaddr_type_abbr_strings_VALUE_STRING_LIST(V) \
+	c_entityaddr_type_strings_LIST(V, C_EXTRACT_2)
+
 #define c_node_type_abbr_strings_VALUE_STRING_LIST(V) \
 	c_node_type_strings_LIST(V, C_EXTRACT_2)
 
@@ -1836,7 +1860,7 @@ typedef struct _c_str {
  */
 static
 guint c_dissect_str(proto_tree *root, int hf, c_str *out,
-		     tvbuff_t *tvb, guint off)
+		    tvbuff_t *tvb, guint off)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -1863,6 +1887,47 @@ guint c_dissect_str(proto_tree *root, int hf, c_str *out,
 	return off;
 }
 
+typedef struct _c_encoded {
+	guint8	version; /** The version of the struct. */
+	guint8	compat;	 /** The oldest compatible version. */
+	guint32 size;	 /** The size of the struct in bytes */
+	guint	end;	 /** The end of the structure's data. */
+} c_encoded;
+
+/** Dissect and 'encoded' struct.
+ *
+ * @param enc The encoded structure to store data in.
+ * @param minver The minimum version that is understood.
+ * @param maxver The maximum version that is understood.
+ * @return The offset of the data.
+ */
+static
+guint c_dissect_encoded(proto_tree *tree, c_encoded *enc,
+			guint8 minver, guint8 maxver,
+			tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+
+	DISSECTOR_ASSERT_HINT(enc, "enc out parameter must be non-null.");
+
+	enc->version = tvb_get_guint8(tvb, off);
+	ti = proto_tree_add_item(tree, hf_encoded_ver,
+				 tvb, off++, 1, ENC_LITTLE_ENDIAN);
+	c_warn_ver(ti, enc->version, minver, maxver, data);
+	enc->compat = tvb_get_guint8(tvb, off);
+	proto_tree_add_item(tree, hf_encoded_compat,
+			    tvb, off++, 1, ENC_LITTLE_ENDIAN);
+
+	enc->size = tvb_get_letohl(tvb, off);
+	proto_tree_add_item(tree, hf_encoded_size,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	enc->end = off + enc->size;
+
+	return off;
+}
+
 #define C_SIZE_SOCKADDR_STORAGE 128
 
 typedef struct _c_sockaddr {
@@ -1873,20 +1938,20 @@ typedef struct _c_sockaddr {
 	guint16 port;	       /** Network Port. */
 } c_sockaddr;
 
-/** Dissect sockaddr structure.
+/** Dissect sockaddr_storage structure.
  *
  * If \a out is provided the data will be stored there.
  */
 static
-guint c_dissect_sockaddr(proto_tree *root, c_sockaddr *out,
-			 tvbuff_t *tvb, guint off)
+guint c_dissect_sockaddr_storage(proto_tree *root, c_sockaddr *out,
+				 tvbuff_t *tvb, guint off)
 {
 	proto_item *ti;
 	proto_tree *tree;
 	c_sockaddr d;
 
 	/*
-	struct sockaddr_storage {
+	struct sockaddr {
 		guint16 family;
 		guint8	pad[???]; // Implementation defined.
 	};
@@ -1944,17 +2009,93 @@ guint c_dissect_sockaddr(proto_tree *root, c_sockaddr *out,
 	return off;
 }
 
-#define C_SIZE_ENTITY_ADDR (4 + 4 + C_SIZE_SOCKADDR_STORAGE)
+/** Dissect sockaddr structure.
+ *
+ * If \a out is provided the data will be stored there.
+ */
+static
+guint c_dissect_sockaddr(proto_tree *root, c_sockaddr *out,
+			 tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_sockaddr d;
+	guint32 elen;
+
+	/*
+	struct sockaddr {
+		guint16 family;
+		guint8	pad[14];
+	};
+	struct sockaddr_in {
+		guint16 family;
+		guint16 port;
+		guint32 addr;
+		guint8	pad[8];
+	};
+	struct sockaddr_in6 {
+		guint16 family;
+		guint16 port;
+		guint32 flow;
+		guint8	addr[16];
+		guint32 scope;
+	};
+	*/
+
+	ti = proto_tree_add_item(root, hf_sockaddr,
+				 tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_sockaddr);
+
+	elen = tvb_get_letohl(tvb, off);
+	off += 4;
+
+	d.af = (c_inet)tvb_get_letohs(tvb, off);
+
+	proto_tree_add_item(tree, hf_inet_family, tvb, off, 2, ENC_LITTLE_ENDIAN);
+
+	switch (d.af) {
+	case C_IPv4:
+		d.port	   = tvb_get_ntohs(tvb, off+2);
+		d.addr_str = tvb_ip_to_str(tvb, off+4);
+
+		proto_tree_add_item(tree, hf_port, tvb, off+2, 2, ENC_BIG_ENDIAN);
+		proto_tree_add_item(tree, hf_addr_ipv4, tvb, off+4, 4, ENC_BIG_ENDIAN);
+		break;
+	case C_IPv6:
+		d.port	   = tvb_get_ntohs (tvb, off+2);
+		d.addr_str = tvb_ip6_to_str(tvb, off+8);
+
+		proto_tree_add_item(tree, hf_port, tvb, off+2, 2, ENC_BIG_ENDIAN);
+		proto_tree_add_item(tree, hf_addr_ipv6, tvb, off+8, 16, ENC_NA);
+		break;
+	default:
+		d.port = 0;
+		d.addr_str = "Unknown INET";
+	}
+
+	d.str = wmem_strdup_printf(wmem_packet_scope(), "%s:%"G_GINT16_MODIFIER"u",
+				   d.addr_str,
+				   d.port);
+	proto_item_append_text(ti, ": %s", d.str);
+
+	off += elen;
+	if (out) *out = d;
+	proto_item_set_end(ti, tvb, off);
+
+	return off;
+}
+
+#define C_SIZE_LEGACY_ENTITY_ADDR (4 + 4 + C_SIZE_SOCKADDR_STORAGE)
 
 typedef struct _c_entity_addr {
 	c_sockaddr addr;
 	const char *type_str;
-	c_node_type type;
+	c_entityaddr_type type;
 } c_entityaddr;
 
 static
-guint c_dissect_entityaddr(proto_tree *root, int hf, c_entityaddr *out,
-			   tvbuff_t *tvb, guint off)
+guint c_dissect_legacy_entityaddr(proto_tree *root, int hf, c_entityaddr *out,
+				  tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -1962,23 +2103,114 @@ guint c_dissect_entityaddr(proto_tree *root, int hf, c_entityaddr *out,
 
 	/* entity_addr_t from ceph:/src/msg/msg_types.h */
 
-	ti = proto_tree_add_item(root, hf, tvb, off, C_SIZE_ENTITY_ADDR, ENC_NA);
+	ti = proto_tree_add_item(root, hf, tvb, off, C_SIZE_LEGACY_ENTITY_ADDR, ENC_NA);
 	tree = proto_item_add_subtree(ti, ett_entityaddr);
 
-	d.type = (c_node_type)tvb_get_letohl(tvb, off);
-	d.type_str = c_node_type_string(d.type);
-	proto_tree_add_item(tree, hf_node_type,
+	d.type = (c_entityaddr_type)tvb_get_letohl(tvb, off);
+	d.type_str = c_entityaddr_type_string(d.type);
+	proto_tree_add_item(tree, hf_entityaddr_type,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
 	proto_tree_add_item(tree, hf_node_nonce,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
-	off = c_dissect_sockaddr(tree, &d.addr, tvb, off);
-
+	off = c_dissect_sockaddr_storage(tree, &d.addr, tvb, off);
 	proto_item_append_text(ti, ", Type: %s, Address: %s",
 			       d.type_str, d.addr.str);
 
 	if (out) *out = d;
+
+	return off;
+}
+
+static
+guint c_dissect_entityaddr_core(proto_tree *root, int hf, c_entityaddr *out,
+				tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_entityaddr d;
+	c_encoded enc;
+
+	ti = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_entityaddr);
+
+	off = c_dissect_encoded(tree, &enc, 1, 1, tvb, off, data);
+
+	d.type = (c_entityaddr_type)tvb_get_letohl(tvb, off);
+	d.type_str = c_entityaddr_type_string(d.type);
+	proto_tree_add_item(tree, hf_entityaddr_type,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+	proto_tree_add_item(tree, hf_node_nonce,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+	off = c_dissect_sockaddr(tree, &d.addr, tvb, off, data);
+
+	proto_item_append_text(ti, ", Type: %s, Address: %s",
+			       d.type_str, d.addr.str);
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	if (out) *out = d;
+	proto_item_set_end(ti, tvb, enc.end);
+
+	return off;
+}
+
+static
+guint c_dissect_entityaddr(proto_tree *root, int hf, c_entityaddr *out,
+			   tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	guint8 marker;
+
+	/* entity_addr_t from ceph:/src/msg/msg_types.h */
+
+	marker = tvb_get_guint8(tvb, off);
+
+	if (marker == 0)
+	{
+		return c_dissect_legacy_entityaddr(root, hf, out, tvb, off, data);
+	}
+
+	DISSECTOR_ASSERT_CMPINT(marker, ==, 1);
+
+	/* marker == 1 */
+	off += 1;
+	return c_dissect_entityaddr_core(root, hf, out, tvb, off, data);
+}
+
+static
+guint c_dissect_entityaddrvec(proto_tree *root, int hf, c_entityaddr *out,
+			      tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	guint32 i;
+	guint8 marker;
+
+	/* entity_addr_t from ceph:/src/msg/msg_types.h */
+
+	marker = tvb_get_guint8(tvb, off);
+
+	if (marker == 0)
+	{
+		return c_dissect_legacy_entityaddr(root, hf, out, tvb, off, data);
+	}
+	else if (marker == 1)
+	{
+		off += 1;
+		return c_dissect_entityaddr_core(root, hf, out, tvb, off, data);
+	}
+
+	DISSECTOR_ASSERT_CMPINT(marker, ==, 2);
+
+	/* marker == 2 */
+	off += 1;
+
+	i = tvb_get_letohl(tvb, off);
+	off += 4;
+	while (i--)
+	{
+		off = c_dissect_entityaddr(root, hf, out, tvb, off, data);
+	}
 
 	return off;
 }
@@ -2009,7 +2241,7 @@ guint c_dissect_entityname(proto_tree *root, int hf, c_entityname *out,
 	tree = proto_item_add_subtree(ti, ett_entityname);
 
 	d.type	   = (c_node_type)tvb_get_guint8(tvb, off);
-	d.type_str = c_node_type_abbr_string(d.type);
+	d.type_str = c_node_type_string(d.type);
 	proto_tree_add_item(tree, hf_node_type,
 			    tvb, off, 1, ENC_LITTLE_ENDIAN);
 	off += 1;
@@ -2056,7 +2288,7 @@ guint c_dissect_entityinst(proto_tree *root, int hf, c_entityinst *out,
 	tree = proto_item_add_subtree(ti, ett_entityinst);
 
 	off = c_dissect_entityname(tree, hf_entityinst_name, &d.name, tvb, off, data);
-	off = c_dissect_entityaddr(tree, hf_entityinst_addr, &d.addr, tvb, off);
+	off = c_dissect_entityaddr(tree, hf_entityinst_addr, &d.addr, tvb, off, data);
 
 	proto_item_append_text(ti, ", Name: %s, Address: %s", d.name.slug, d.addr.addr.str);
 
@@ -2265,47 +2497,6 @@ guint c_dissect_kv(proto_tree *root, int hf, int hf_k, int hf_v,
 
 	proto_item_append_text(ti, ", %s = %s", k.str, v.str);
 	proto_item_set_end(ti, tvb, off);
-
-	return off;
-}
-
-typedef struct _c_encoded {
-	guint8	version; /** The version of the struct. */
-	guint8	compat;	 /** The oldest compatible version. */
-	guint32 size;	 /** The size of the struct in bytes */
-	guint	end;	 /** The end of the structure's data. */
-} c_encoded;
-
-/** Dissect and 'encoded' struct.
- *
- * @param enc The encoded structure to store data in.
- * @param minver The minimum version that is understood.
- * @param maxver The maximum version that is understood.
- * @return The offset of the data.
- */
-static
-guint c_dissect_encoded(proto_tree *tree, c_encoded *enc,
-			guint8 minver, guint8 maxver,
-			tvbuff_t *tvb, guint off, c_pkt_data *data)
-{
-	proto_item *ti;
-
-	DISSECTOR_ASSERT_HINT(enc, "enc out parameter must be non-null.");
-
-	enc->version = tvb_get_guint8(tvb, off);
-	ti = proto_tree_add_item(tree, hf_encoded_ver,
-				 tvb, off++, 1, ENC_LITTLE_ENDIAN);
-	c_warn_ver(ti, enc->version, minver, maxver, data);
-	enc->compat = tvb_get_guint8(tvb, off);
-	proto_tree_add_item(tree, hf_encoded_compat,
-			    tvb, off++, 1, ENC_LITTLE_ENDIAN);
-
-	enc->size = tvb_get_letohl(tvb, off);
-	proto_tree_add_item(tree, hf_encoded_size,
-			    tvb, off, 4, ENC_LITTLE_ENDIAN);
-	off += 4;
-
-	enc->end = off + enc->size;
 
 	return off;
 }
@@ -2903,7 +3094,65 @@ guint c_dissect_pgpool(proto_tree *root,
 	return off;
 }
 
-/** Dissect a MonMap. */
+/** Dissect a mon_feature_t */
+static
+guint c_dissect_mon_feature(proto_tree *root, int hf, tvbuff_t *tvb,
+			    guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+
+	/* mon_feature_t from ceph:/src/mon/mon_types.h */
+
+	ti = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_mon_map_features);
+
+	off = c_dissect_encoded(tree, &enc, 1, 1, tvb, off, data);
+
+	off = c_dissect_features(tree, tvb, off, data);
+
+ 	c_warn_size(tree, tvb, off, enc.end, data);
+ 	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect a mon_info_t */
+static
+guint c_dissect_mon_info(proto_tree *root, c_entityaddr *out,
+			 tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	guint32 key_len;
+	c_encoded enc;
+
+	/** mon_info_t from ceph:/src/mon/MonMap.cc */
+
+	off = c_dissect_encoded(root, &enc, 3, 3, tvb, off, data);
+
+	/* skip mon_name repeated with std::map::key */
+	key_len = tvb_get_letohl(tvb, off);
+	off += 4 + key_len;
+
+
+	off = c_dissect_entityaddrvec(root, hf_monmap_address_addr, out,
+				      tvb, off, data);
+
+	if (enc.version >= 2)
+	{
+		proto_tree_add_item(root, hf_monmap_mon_priority,
+				    tvb, off, 2, ENC_LITTLE_ENDIAN);
+		off += 2;
+	}
+
+	c_warn_size(root, tvb, off, enc.end, data);
+	off = enc.end;
+
+	return off;
+}
+
+/** Dissect a MonMap */
 static
 guint c_dissect_monmap(proto_tree *root,
 		       tvbuff_t *tvb, guint off, c_pkt_data *data)
@@ -2929,7 +3178,7 @@ guint c_dissect_monmap(proto_tree *root,
 
 	off += 4;
 
-	off = c_dissect_encoded(tree, &enc, 3, 3, tvb, off, data);
+	off = c_dissect_encoded(tree, &enc, 3, 7, tvb, off, data);
 	/* Check the blob size and encoded size match. */
 	c_warn_size(tree, tvb, enc.end, end, data);
 
@@ -2939,22 +3188,43 @@ guint c_dissect_monmap(proto_tree *root,
 	proto_tree_add_item(tree, hf_monmap_epoch, tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
 
-	i = tvb_get_letohl(tvb, off);
-	off += 4;
-	while (i--)
+	if (enc.version == 1)
 	{
-		ti2 = proto_tree_add_item(tree, hf_monmap_address,
-					  tvb, off, -1, ENC_NA);
-		subtree = proto_item_add_subtree(ti2, ett_mon_map_address);
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			c_entityinst inst;
 
-		off = c_dissect_str(subtree, hf_monmap_address_name, &str, tvb, off);
-		off = c_dissect_entityaddr(subtree, hf_monmap_address_addr, &addr,
-					   tvb, off);
+			ti2 = proto_tree_add_item(tree, hf_monmap_address,
+						  tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_mon_map_address);
 
-		proto_item_append_text(ti2, ", Name: %s, Address: %s",
-				       str.str, addr.addr.addr_str);
+			off = c_dissect_entityinst(subtree, hf_monmap_node, &inst,
+						   tvb, off, data);
+			proto_item_append_text(ti2, ", Node: %s", inst.name.slug);
+			proto_item_set_end(ti2, tvb, off);
+		}
+	}
+	else if (enc.version < 6)
+	{
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			ti2 = proto_tree_add_item(tree, hf_monmap_address,
+						  tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_mon_map_address);
 
-		proto_item_set_end(ti2, tvb, off);
+			off = c_dissect_str(subtree, hf_monmap_address_name, &str, tvb, off);
+			off = c_dissect_entityaddr(subtree, hf_monmap_address_addr, &addr,
+						   tvb, off, data);
+
+			proto_item_append_text(ti2, ", Name: %s, Address: %s",
+					       str.str, addr.addr.addr_str);
+
+			proto_item_set_end(ti2, tvb, off);
+		}
 	}
 
 	proto_tree_add_item(tree, hf_monmap_changed, tvb, off, 8, ENC_LITTLE_ENDIAN);
@@ -2962,6 +3232,61 @@ guint c_dissect_monmap(proto_tree *root,
 
 	proto_tree_add_item(tree, hf_monmap_created, tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
+
+	if (enc.version >= 4)
+	{
+		off = c_dissect_mon_feature(tree, hf_monmap_persistent_features, tvb, off, data);
+		off = c_dissect_mon_feature(tree, hf_monmap_optional_features, tvb, off, data);
+	}
+
+	if (enc.version < 5)
+	{
+		/* do nothing */
+	}
+	else
+	{
+		/* dissect mon_info */
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			ti2 = proto_tree_add_item(tree, hf_monmap_address, tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_mon_map_address);
+
+			off = c_dissect_str(subtree, hf_monmap_address_name, &str, tvb, off);
+
+			off = c_dissect_mon_info(subtree, &addr, tvb, off, data);
+			proto_item_append_text(ti2, ", Name: %s, Address: %s",
+					       str.str, addr.addr.addr_str);
+
+			proto_item_set_end(ti2, tvb, off);
+		}
+	}
+
+	if (enc.version < 6)
+	{
+		/* do nothing */
+	}
+	else
+	{
+		/* dissect ranks */
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+
+		ti2 = proto_tree_add_item(tree, hf_monmap_mon_ranks, tvb, off, -1, ENC_NA);
+		subtree = proto_item_add_subtree(ti2, ett_mon_map_monranks);
+		while (i--)
+		{
+			off = c_dissect_str(subtree, hf_monmap_address_name, NULL, tvb, off);
+		}
+		proto_item_set_end(ti2, tvb, off);
+	}
+
+	if (enc.version >= 7)
+	{
+		proto_tree_add_item(tree, hf_monmap_mon_min_release, tvb, off, 1, ENC_LITTLE_ENDIAN);
+		off += 1;
+	}
 
 	c_warn_size(tree, tvb, off, end, data);
 	off = end;
@@ -3500,7 +3825,7 @@ guint c_dissect_osdmap(proto_tree *root,
 	while (i--)
 	{
 		off = c_dissect_entityaddr(subtree, hf_osdmap_osd_addr, NULL,
-					   tvb, off);
+					   tvb, off, data);
 	}
 
 	i = tvb_get_letohl(tvb, off);
@@ -3611,7 +3936,7 @@ guint c_dissect_osdmap(proto_tree *root,
 	while (i--)
 	{
 		off = c_dissect_entityaddr(subtree, hf_osdmap_hbaddr_back, NULL,
-					   tvb, off);
+					   tvb, off, data);
 	}
 
 	i = tvb_get_letohl(tvb, off);
@@ -3633,7 +3958,7 @@ guint c_dissect_osdmap(proto_tree *root,
 		bltree = proto_item_add_subtree(blti, ett_osd_map_blacklist);
 
 		off = c_dissect_entityaddr(bltree, hf_osdmap_blacklist_addr, NULL,
-					   tvb, off);
+					   tvb, off, data);
 
 		proto_tree_add_item(bltree, hf_osdmap_blacklist_time,
 				    tvb, off, 8, ENC_LITTLE_ENDIAN);
@@ -3647,7 +3972,7 @@ guint c_dissect_osdmap(proto_tree *root,
 	while (i--)
 	{
 		off = c_dissect_entityaddr(subtree, hf_osdmap_cluster_addr, NULL,
-					   tvb, off);
+					   tvb, off, data);
 	}
 
 	proto_tree_add_item(subtree, hf_osdmap_cluster_snapepoch,
@@ -3677,7 +4002,7 @@ guint c_dissect_osdmap(proto_tree *root,
 	while (i--)
 	{
 		off = c_dissect_entityaddr(subtree, hf_osdmap_hbaddr_front, NULL,
-					   tvb, off);
+					   tvb, off, data);
 	}
 
 	c_warn_size(subtree, tvb, off, enc2.end, data);
@@ -5961,11 +6286,11 @@ guint c_dissect_msg_osd_boot(proto_tree *root,
 
 	off = c_dissect_osd_superblock(tree, tvb, off, data);
 
-	off = c_dissect_entityaddr(tree, hf_msg_osd_boot_addr_back, NULL, tvb, off);
+	off = c_dissect_entityaddr(tree, hf_msg_osd_boot_addr_back, NULL, tvb, off, data);
 
 	if (data->header.ver >= 2)
 	{
-		off = c_dissect_entityaddr(tree, hf_msg_osd_boot_addr_cluster, NULL, tvb, off);
+		off = c_dissect_entityaddr(tree, hf_msg_osd_boot_addr_cluster, NULL, tvb, off, data);
 	}
 	if (data->header.ver >= 3)
 	{
@@ -5975,7 +6300,7 @@ guint c_dissect_msg_osd_boot(proto_tree *root,
 	}
 	if (data->header.ver >= 4)
 	{
-		off = c_dissect_entityaddr(tree, hf_msg_osd_boot_addr_front, NULL, tvb, off);
+		off = c_dissect_entityaddr(tree, hf_msg_osd_boot_addr_front, NULL, tvb, off, data);
 	}
 	if (data->header.ver >= 5)
 	{
@@ -6607,9 +6932,9 @@ guint c_dissect_msg(proto_tree *tree,
 #define C_SIZE_CONNECT          33
 #define C_SIZE_CONNECT_REPLY    25
 #define C_CONNECT_REPLY_OFF_OFFLEN 20
-#define C_SIZE_HELLO_S          (2*C_SIZE_ENTITY_ADDR)
-#define C_SIZE_HELLO_C          (C_SIZE_ENTITY_ADDR + C_SIZE_CONNECT)
-#define C_HELLO_OFF_AUTHLEN     (C_SIZE_ENTITY_ADDR + 28)
+#define C_SIZE_HELLO_S          (2*C_SIZE_LEGACY_ENTITY_ADDR)
+#define C_SIZE_HELLO_C          (C_SIZE_LEGACY_ENTITY_ADDR + C_SIZE_CONNECT)
+#define C_HELLO_OFF_AUTHLEN     (C_SIZE_LEGACY_ENTITY_ADDR + 28)
 
 /** Dissect a connection request. */
 static
@@ -6753,9 +7078,9 @@ guint c_dissect_new(proto_tree *tree,
 	c_set_type(data, "Connect");
 
 	if (c_from_server(data))
-		off = c_dissect_entityaddr(tree, hf_server_info, NULL, tvb, off);
+		off = c_dissect_entityaddr(tree, hf_server_info, NULL, tvb, off, data);
 
-	off = c_dissect_entityaddr(tree, hf_client_info, NULL, tvb, off);
+	off = c_dissect_entityaddr(tree, hf_client_info, NULL, tvb, off, data);
 
 	if (c_from_client(data))
 		off = c_dissect_connect(tree, tvb, off, data);
@@ -6947,11 +7272,11 @@ guint c_pdu_end(tvbuff_t *tvb, packet_info *pinfo, guint off, c_pkt_data *data)
 	 * another entity_addr_t.
 	 */
 	if (data->convd->client.state == C_STATE_HANDSHAKE) {
-		if (!tvb_bytes_exist(tvb, off, C_BANNER_SIZE + C_SIZE_ENTITY_ADDR + 8 + 2))
+		if (!tvb_bytes_exist(tvb, off, C_BANNER_SIZE + C_SIZE_LEGACY_ENTITY_ADDR + 8 + 2))
 			return C_NEEDMORE;
 
 		/* We have enough to determine client vs. server */
-		af = (c_inet)tvb_get_ntohs(tvb, off + C_BANNER_SIZE + C_SIZE_ENTITY_ADDR + 8);
+		af = (c_inet)tvb_get_ntohs(tvb, off + C_BANNER_SIZE + C_SIZE_LEGACY_ENTITY_ADDR + 8);
 		if (af != C_IPv4 && af != C_IPv6) {
 			/* Client */
 			copy_address_wmem(wmem_file_scope(), &data->convd->client.addr, &pinfo->src);
@@ -7208,6 +7533,11 @@ proto_register_ceph(void)
 			FT_UINT32, BASE_HEX, NULL, 0,
 			"Meaningless number to differentiate between nodes on "
 			"the same system.", HFILL
+		} },
+		{ &hf_entityaddr_type, {
+			"Type", "ceph.entityaddr_type",
+			FT_UINT32, BASE_HEX, VALS(c_entityaddr_type_strings), 0,
+			"The type of entityaddr.", HFILL
 		} },
 		{ &hf_entityinst_name, {
 			"Name", "ceph.entityinst.name",
@@ -7750,6 +8080,11 @@ proto_register_ceph(void)
 			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
+		{ &hf_monmap_node, {
+			"Node", "ceph.monmap.node",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
 		{ &hf_monmap_changed, {
 			"Last Changed", "ceph.monmap.changed",
 			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
@@ -7758,6 +8093,31 @@ proto_register_ceph(void)
 		{ &hf_monmap_created, {
 			"Time Created", "ceph.monmap.created",
 			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_monmap_persistent_features, {
+			"Persistent Features", "ceph.monmap.persistentfeatures",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_monmap_optional_features, {
+			"Optional Features", "ceph.monmap.optionalfeatures",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_monmap_mon_priority, {
+			"Priority", "ceph.monmap.priority",
+			FT_UINT16, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_monmap_mon_ranks, {
+			"Ranks", "ceph.monmap.ranks",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_monmap_mon_min_release, {
+			"Min Release", "ceph.mnmap.monminrelease",
+			FT_UINT8, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
 		{ &hf_pg_stat_ver, {
@@ -10454,6 +10814,9 @@ proto_register_ceph(void)
 		&ett_pgpool_property,
 		&ett_mon_map,
 		&ett_mon_map_address,
+		&ett_mon_map_features,
+		&ett_mon_map_moninfo,
+		&ett_mon_map_monranks,
 		&ett_osd_peerstat,
 		&ett_featureset,
 		&ett_featureset_name,
