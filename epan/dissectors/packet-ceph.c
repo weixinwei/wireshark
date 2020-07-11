@@ -1218,7 +1218,8 @@ static value_string_ext c_tag_v2_strings_ext = VALUE_STRING_EXT_INIT(c_tag_v2_st
 	V(C_MSG_MDS_EXPORTCAPSACK,	     0x0471, "C_MSG_MDS_EXPORTCAPSACK")		  \
 	V(C_MSG_MDS_HEARTBEAT,		     0x0500, "C_MSG_MDS_HEARTBEAT")		  \
 	V(C_MSG_TIMECHECK,		     0x0600, "C_MSG_TIMECHECK")			  \
-	V(C_MSG_MON_HEALTH,		     0x0601, "C_MSG_MON_HEALTH")
+	V(C_MSG_MON_HEALTH,		     0x0601, "C_MSG_MON_HEALTH")		  \
+	V(C_MSG_MGR_REPORT,		     0x0702, "C_MSG_MGR_REPORT")
 
 C_MAKE_STRINGS_EXT(c_msg_type, 4)
 
@@ -3247,7 +3248,7 @@ guint c_dissect_mon_info(proto_tree *root, c_entityaddr *out,
 
 	/** mon_info_t from ceph:/src/mon/MonMap.cc */
 
-	off = c_dissect_encoded(root, &enc, 3, 3, tvb, off, data);
+	off = c_dissect_encoded(root, &enc, 1, 3, tvb, off, data);
 
 	/* skip mon_name repeated with std::map::key */
 	key_len = tvb_get_letohl(tvb, off);
@@ -7305,6 +7306,23 @@ guint c_dissect_msg_timecheck(proto_tree *root,
 	return off;
 }
 
+/** Mgr Report 0x0702 */
+static
+guint c_dissect_msg_mgr_report(proto_tree *root,
+			       tvbuff_t *tvb,
+			       guint front_len, guint middle_len _U_, guint data_len _U_,
+			       c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MMgrReport.h */
+
+	c_set_type(data, "Mgr Report");
+
+	return front_len;
+}
+
 /*** MSGR Dissectors ***/
 
 #define C_OFF_HEAD0  0
@@ -7482,6 +7500,7 @@ guint c_dissect_msg(proto_tree *tree,
 	C_HANDLE(C_CEPH_MSG_CLIENT_CAPS,	    c_dissect_msg_client_caps)
 	C_HANDLE(C_CEPH_MSG_CLIENT_CAPRELEASE,	    c_dissect_msg_client_caprel)
 	C_HANDLE(C_MSG_TIMECHECK,		    c_dissect_msg_timecheck)
+	C_HANDLE(C_MSG_MGR_REPORT,		    c_dissect_msg_mgr_report)
 
 	default:
 		parsedsize = C_CALL(c_dissect_msg_unknown);
