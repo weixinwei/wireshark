@@ -1219,7 +1219,15 @@ static value_string_ext c_tag_v2_strings_ext = VALUE_STRING_EXT_INIT(c_tag_v2_st
 	V(C_MSG_MDS_HEARTBEAT,		     0x0500, "C_MSG_MDS_HEARTBEAT")		  \
 	V(C_MSG_TIMECHECK,		     0x0600, "C_MSG_TIMECHECK")			  \
 	V(C_MSG_MON_HEALTH,		     0x0601, "C_MSG_MON_HEALTH")		  \
-	V(C_MSG_MGR_REPORT,		     0x0702, "C_MSG_MGR_REPORT")
+	V(C_MSG_MGR_OPEN,		     0x0700, "C_MSG_MGR_OPEN")			  \
+	V(C_MSG_MGR_CONFIGURE,		     0x0701, "C_MSG_MGR_CONFIGURE")		  \
+	V(C_MSG_MGR_REPORT,		     0x0702, "C_MSG_MGR_REPORT")		  \
+	V(C_MSG_MGR_BEACON,		     0x0703, "C_MSG_MGR_BEACON")		  \
+	V(C_MSG_MGR_MAP,		     0x0704, "C_MSG_MGR_MAP")			  \
+	V(C_MSG_MGR_DIGEST,		     0x0705, "C_MSG_MGR_DIGEST")		  \
+	V(C_MSG_MON_MGR_REPORT,		     0x0706, "C_MSG_MON_MGR_REPORT")		  \
+	V(C_MSG_SERVICE_MAP,		     0x0707, "C_MSG_SERVICE_MAP")		  \
+	V(C_MSG_MGR_CLOSE,		     0x0708, "C_MSG_MGR_CLOSE")
 
 C_MAKE_STRINGS_EXT(c_msg_type, 4)
 
@@ -7306,6 +7314,39 @@ guint c_dissect_msg_timecheck(proto_tree *root,
 	return off;
 }
 
+/** Mgr Open 0x0700 */
+static
+guint c_dissect_msg_mgr_open(proto_tree *root,
+			     tvbuff_t *tvb,
+			     guint front_len, guint middle_len _U_, guint data_len _U_,
+			     c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MMgrOpen.h */
+
+	c_set_type(data, "Mgr Open");
+
+	return front_len;
+}
+
+/** Mgr Configure 0x0701 */
+static
+guint c_dissect_msg_mgr_configure(proto_tree *root,
+				  tvbuff_t *tvb,
+				  guint front_len, guint middle_len _U_, guint data_len _U_,
+				  c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MMgrConfigure.h */
+
+	c_set_type(data, "Mgr Configure");
+
+	return front_len;
+}
 /** Mgr Report 0x0702 */
 static
 guint c_dissect_msg_mgr_report(proto_tree *root,
@@ -7319,6 +7360,108 @@ guint c_dissect_msg_mgr_report(proto_tree *root,
 	/* ceph:/src/messages/MMgrReport.h */
 
 	c_set_type(data, "Mgr Report");
+
+	return front_len;
+}
+
+/** Mgr Beacon 0x0703 */
+static
+guint c_dissect_msg_mgr_beacon(proto_tree *root,
+			       tvbuff_t *tvb,
+			       guint front_len, guint middle_len _U_, guint data_len _U_,
+			       c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MMgrBeacon.h */
+
+	c_set_type(data, "Mgr Beacon");
+
+	return front_len;
+}
+
+/** Mgr Map 0x0704 */
+static
+guint c_dissect_msg_mgr_map(proto_tree *root,
+			    tvbuff_t *tvb,
+			    guint front_len, guint middle_len _U_, guint data_len _U_,
+			    c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MMgrMap.h */
+
+	c_set_type(data, "Mgr Map");
+
+	return front_len;
+}
+
+/** Mgr Digest 0x0705 */
+static
+guint c_dissect_msg_mgr_digest(proto_tree *root,
+			       tvbuff_t *tvb,
+			       guint front_len, guint middle_len _U_, guint data_len _U_,
+			       c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MMgrDigest.h */
+
+	c_set_type(data, "Mgr Digest");
+
+	return front_len;
+}
+
+/** Mon Mgr Report 0x0706 */
+static
+guint c_dissect_msg_mon_mgr_report(proto_tree *root,
+				   tvbuff_t *tvb,
+				   guint front_len, guint middle_len _U_, guint data_len _U_,
+				   c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MMonMgrReport.h */
+
+	c_set_type(data, "Mon Mgr Report");
+
+	return front_len;
+}
+
+/** Service Map 0x0707 */
+static
+guint c_dissect_msg_service_map(proto_tree *root,
+			        tvbuff_t *tvb,
+			        guint front_len, guint middle_len _U_, guint data_len _U_,
+			        c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MServiceMap.h */
+
+	c_set_type(data, "Service Map");
+
+	return front_len;
+}
+
+/** Mgr Close 0x0708 */
+static
+guint c_dissect_msg_mgr_close(proto_tree *root,
+			      tvbuff_t *tvb,
+			      guint front_len, guint middle_len _U_, guint data_len _U_,
+			      c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MMgrClose.h */
+
+	c_set_type(data, "Mgr Close");
 
 	return front_len;
 }
@@ -7500,7 +7643,15 @@ guint c_dissect_msg(proto_tree *tree,
 	C_HANDLE(C_CEPH_MSG_CLIENT_CAPS,	    c_dissect_msg_client_caps)
 	C_HANDLE(C_CEPH_MSG_CLIENT_CAPRELEASE,	    c_dissect_msg_client_caprel)
 	C_HANDLE(C_MSG_TIMECHECK,		    c_dissect_msg_timecheck)
+	C_HANDLE(C_MSG_MGR_OPEN,		    c_dissect_msg_mgr_open)
+	C_HANDLE(C_MSG_MGR_CONFIGURE,		    c_dissect_msg_mgr_configure)
 	C_HANDLE(C_MSG_MGR_REPORT,		    c_dissect_msg_mgr_report)
+	C_HANDLE(C_MSG_MGR_BEACON,		    c_dissect_msg_mgr_beacon)
+	C_HANDLE(C_MSG_MGR_MAP,			    c_dissect_msg_mgr_map)
+	C_HANDLE(C_MSG_MGR_DIGEST,		    c_dissect_msg_mgr_digest)
+	C_HANDLE(C_MSG_MON_MGR_REPORT,		    c_dissect_msg_mon_mgr_report)
+	C_HANDLE(C_MSG_SERVICE_MAP,		    c_dissect_msg_service_map)
+	C_HANDLE(C_MSG_MGR_CLOSE,		    c_dissect_msg_mgr_close)
 
 	default:
 		parsedsize = C_CALL(c_dissect_msg_unknown);
