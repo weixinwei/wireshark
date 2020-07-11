@@ -190,7 +190,7 @@ static int hf_monmap_mon_min_release		 = -1;
 static int hf_pg_stat_ver			 = -1;
 static int hf_pg_stat_seq			 = -1;
 static int hf_pg_stat_epoch			 = -1;
-static int hf_pg_stat_state			 = -1;
+static int hf_pg_stat_oldstate			 = -1;
 static int hf_pg_stat_logstart			 = -1;
 static int hf_pg_stat_logstartondisk		 = -1;
 static int hf_pg_stat_created			 = -1;
@@ -220,6 +220,22 @@ static int hf_pg_stat_upprimary			 = -1;
 static int hf_pg_stat_actingprimary		 = -1;
 static int hf_pg_stat_omapstatsinvalid		 = -1;
 static int hf_pg_stat_hitsetstatsinvalid	 = -1;
+static int hf_pg_stat_blockedby			 = -1;
+static int hf_pg_stat_lastundegraded		 = -1;
+static int hf_pg_stat_lastfullsized		 = -1;
+static int hf_pg_stat_hitsetbytesstatsinvalid	 = -1;
+static int hf_pg_stat_lastpeered		 = -1;
+static int hf_pg_stat_lastbecamepeered		 = -1;
+static int hf_pg_stat_pinstatsinvalid		 = -1;
+static int hf_pg_stat_snaptrimqlen		 = -1;
+static int hf_pg_stat_topstate			 = -1;
+static int hf_pg_stat_purgedsnaps		 = -1;
+static int hf_pg_stat_snap_id			 = -1;
+static int hf_pg_stat_manifeststatsinvalid	 = -1;
+static int hf_pg_stat_availnomissing		 = -1;
+static int hf_pg_shard				 = -1;
+static int hf_pg_objectlocation			 = -1;
+static int hf_pg_objects			 = -1;
 static int hf_crush				 = -1;
 static int hf_osd_peerstat			 = -1;
 static int hf_osd_peerstat_timestamp		 = -1;
@@ -450,7 +466,7 @@ static int hf_statsum_bytes			 = -1;
 static int hf_statsum_objects			 = -1;
 static int hf_statsum_clones			 = -1;
 static int hf_statsum_copies			 = -1;
-static int hf_statsum_missing			 = -1;
+static int hf_statsum_missing_on_primary	 = -1;
 static int hf_statsum_degraded			 = -1;
 static int hf_statsum_unfound			 = -1;
 static int hf_statsum_read_bytes		 = -1;
@@ -467,6 +483,25 @@ static int hf_statsum_dirty			 = -1;
 static int hf_statsum_whiteouts			 = -1;
 static int hf_statsum_omap			 = -1;
 static int hf_statsum_hitset_archive		 = -1;
+static int hf_statsum_misplaced			 = -1;
+static int hf_statsum_bytes_hitset_archive	 = -1;
+static int hf_statsum_flush			 = -1;
+static int hf_statsum_flushkb			 = -1;
+static int hf_statsum_evict			 = -1;
+static int hf_statsum_evictkb			 = -1;
+static int hf_statsum_promote			 = -1;
+static int hf_statsum_flushmode_high		 = -1;
+static int hf_statsum_flushmode_low		 = -1;
+static int hf_statsum_flushmode_some		 = -1;
+static int hf_statsum_flushmode_full		 = -1;
+static int hf_statsum_pinned			 = -1;
+static int hf_statsum_missing			 = -1;
+static int hf_statsum_legacy_snapsets		 = -1;
+static int hf_statsum_largeomap			 = -1;
+static int hf_statsum_manifest			 = -1;
+static int hf_statsum_omapbytes			 = -1;
+static int hf_statsum_omapkeys			 = -1;
+static int hf_statsum_repaired			 = -1;
 static int hf_connect				 = -1;
 static int hf_connect_reply			 = -1;
 static int hf_tag_v1				 = -1;
@@ -722,6 +757,7 @@ static int hf_msg_pgstats_pgstat_pg		 = -1;
 static int hf_msg_pgstats_pgstat_stat		 = -1;
 static int hf_msg_pgstats_epoch			 = -1;
 static int hf_msg_pgstats_mapfor		 = -1;
+static int hf_msg_pgstats_poolstat		 = -1;
 static int hf_msg_osd_pg_create			 = -1;
 static int hf_msg_osd_pg_create_epoch		 = -1;
 static int hf_msg_osd_pg_create_mkpg		 = -1;
@@ -820,6 +856,9 @@ static gint ett_objectstore		   = -1;
 static gint ett_osd_alerts		   = -1;
 static gint ett_osd_hbtime		   = -1;
 static gint ett_pg_stat			   = -1;
+static gint ett_pg_stat_purgedsnaps	   = -1;
+static gint ett_pg_stat_availnomissing	   = -1;
+static gint ett_pg_stat_objectlocation	   = -1;
 static gint ett_osd_map			   = -1;
 static gint ett_osd_map_client		   = -1;
 static gint ett_osd_map_pool		   = -1;
@@ -876,6 +915,7 @@ static gint ett_msg_osd_ping		   = -1;
 static gint ett_msg_osd_boot		   = -1;
 static gint ett_msg_pgstats		   = -1;
 static gint ett_msg_pgstats_pgstat	   = -1;
+static gint ett_msg_pgstats_poolstat	   = -1;
 static gint ett_msg_osd_pg_create	   = -1;
 static gint ett_msg_osd_pg_create_mkpg	   = -1;
 static gint ett_msg_client_caps		   = -1;
@@ -4578,7 +4618,7 @@ guint c_dissect_statsum(proto_tree *tree,
 
 	/** object_stat_sum_t from ceph:/src/osd/osd_types.h */
 
-	off = c_dissect_encoded(tree, &enc, 3, 9, tvb, off, data);
+	off = c_dissect_encoded(tree, &enc, 3, 20, tvb, off, data);
 
 	proto_tree_add_item(tree, hf_statsum_bytes,
 			    tvb, off, 8, ENC_LITTLE_ENDIAN);
@@ -4592,7 +4632,7 @@ guint c_dissect_statsum(proto_tree *tree,
 	proto_tree_add_item(tree, hf_statsum_copies,
 			    tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
-	proto_tree_add_item(tree, hf_statsum_missing,
+	proto_tree_add_item(tree, hf_statsum_missing_on_primary,
 			    tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
 	proto_tree_add_item(tree, hf_statsum_degraded,
@@ -4616,46 +4656,103 @@ guint c_dissect_statsum(proto_tree *tree,
 	proto_tree_add_item(tree, hf_statsum_scrub_errors,
 			    tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
+	proto_tree_add_item(tree, hf_statsum_recovered,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_bytes_recovered,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_keys_recovered,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_shallow_scrub_errors,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_deep_scrub_errors,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_dirty,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_whiteouts,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_omap,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_hitset_archive,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
 
-	if (enc.version >= 5)
+	proto_tree_add_item(tree, hf_statsum_misplaced,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_bytes_hitset_archive,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_flush,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_flushkb,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_evict,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_evictkb,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_promote,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_flushmode_high,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+	proto_tree_add_item(tree, hf_statsum_flushmode_low,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+	proto_tree_add_item(tree, hf_statsum_flushmode_some,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+	proto_tree_add_item(tree, hf_statsum_flushmode_full,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+	proto_tree_add_item(tree, hf_statsum_pinned,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_statsum_missing,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	if (enc.version >= 16)
 	{
-		proto_tree_add_item(tree, hf_statsum_recovered,
-				    tvb, off, 8, ENC_LITTLE_ENDIAN);
-		off += 8;
-		proto_tree_add_item(tree, hf_statsum_bytes_recovered,
-				    tvb, off, 8, ENC_LITTLE_ENDIAN);
-		off += 8;
-		proto_tree_add_item(tree, hf_statsum_keys_recovered,
+		proto_tree_add_item(tree, hf_statsum_legacy_snapsets,
 				    tvb, off, 8, ENC_LITTLE_ENDIAN);
 		off += 8;
 	}
-	if (enc.version >= 6)
+	if (enc.version >= 17)
 	{
-		proto_tree_add_item(tree, hf_statsum_shallow_scrub_errors,
-				    tvb, off, 8, ENC_LITTLE_ENDIAN);
-		off += 8;
-		proto_tree_add_item(tree, hf_statsum_deep_scrub_errors,
+		proto_tree_add_item(tree, hf_statsum_largeomap,
 				    tvb, off, 8, ENC_LITTLE_ENDIAN);
 		off += 8;
 	}
-	if (enc.version >= 7)
+	if (enc.version >= 18)
 	{
-		proto_tree_add_item(tree, hf_statsum_dirty,
-				    tvb, off, 8, ENC_LITTLE_ENDIAN);
-		off += 8;
-		proto_tree_add_item(tree, hf_statsum_whiteouts,
+		proto_tree_add_item(tree, hf_statsum_manifest,
 				    tvb, off, 8, ENC_LITTLE_ENDIAN);
 		off += 8;
 	}
-	if (enc.version >= 8)
+	if (enc.version >= 19)
 	{
-		proto_tree_add_item(tree, hf_statsum_omap,
+		proto_tree_add_item(tree, hf_statsum_omapbytes,
+				    tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+		proto_tree_add_item(tree, hf_statsum_omapkeys,
 				    tvb, off, 8, ENC_LITTLE_ENDIAN);
 		off += 8;
 	}
-	if (enc.version >= 9)
+	if (enc.version >= 20)
 	{
-		proto_tree_add_item(tree, hf_statsum_hitset_archive,
+		proto_tree_add_item(tree, hf_statsum_repaired,
 				    tvb, off, 8, ENC_LITTLE_ENDIAN);
 		off += 8;
 	}
@@ -4699,13 +4796,38 @@ guint c_dissect_statcollection(proto_tree *root, int key,
 	return off;
 }
 
+/** Dissect an pg_shard_t. */
+static
+guint c_dissect_pg_shard(proto_tree *root, tvbuff_t *tvb, guint off)
+{
+	proto_item *ti;
+	guint32 osd;
+	gint8 shard_id;
+
+	/* pg_shard_t from ceph:/src/osd/osd_types.h */
+
+	ti = proto_tree_add_item(root, hf_pg_shard, tvb, off, -1, ENC_NA);
+
+	osd = tvb_get_letohl(tvb, off);
+	off += 4;
+
+	shard_id = tvb_get_gint8(tvb, off);
+	off += 1;
+
+	proto_item_append_text(ti, ", OSD: %"G_GINT32_MODIFIER"u", osd);
+	proto_item_append_text(ti, ", shard_id: %"G_GINT32_MODIFIER"d", (gint)shard_id);
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
 /** Dissect an pg_stat_t. */
 static
 guint c_dissect_pg_stats(proto_tree *root, int hf,
 			 tvbuff_t *tvb, guint off, c_pkt_data *data)
 {
-	proto_item *ti;
-	proto_tree *tree;
+	proto_item *ti, *ti2;
+	proto_tree *tree, *subtree;
 	c_encoded enc;
 	guint32 i;
 
@@ -4714,7 +4836,7 @@ guint c_dissect_pg_stats(proto_tree *root, int hf,
 	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
 	tree = proto_item_add_subtree(ti, ett_pg_stat);
 
-	off = c_dissect_encoded(tree, &enc, 8, 17, tvb, off, data);
+	off = c_dissect_encoded(tree, &enc, 8, 26, tvb, off, data);
 
 	off = c_dissect_eversion(tree, hf_pg_stat_ver, tvb, off, data);
 
@@ -4726,7 +4848,7 @@ guint c_dissect_pg_stats(proto_tree *root, int hf,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
 
-	proto_tree_add_item(tree, hf_pg_stat_state,
+	proto_tree_add_item(tree, hf_pg_stat_oldstate,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
 
@@ -4763,22 +4885,60 @@ guint c_dissect_pg_stats(proto_tree *root, int hf,
 			    tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
 
-	i = tvb_get_letohl(tvb, off);
-	off += 4;
-	while (i--)
 	{
-		proto_tree_add_item(tree, hf_pg_stat_up,
-				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		ti2 = proto_tree_add_item(tree, hf_pg_stat_up,
+					  tvb, off, -1, ENC_NA);
+
+		i = tvb_get_letohl(tvb, off);
 		off += 4;
+
+		proto_item_append_text(ti2, ": [");
+		while (i--)
+		{
+			gint32 up;
+
+			up = tvb_get_letohl(tvb, off);
+			off += 4;
+
+			if (i == 0)
+			{
+				proto_item_append_text(ti2, "%"G_GINT32_MODIFIER"d", up);
+			}
+			else
+			{
+				proto_item_append_text(ti2, "%"G_GINT32_MODIFIER"d, ", up);
+			}
+		}
+		proto_item_append_text(ti2, "]");
+		proto_item_set_end(ti2, tvb, off);
 	}
 
-	i = tvb_get_letohl(tvb, off);
-	off += 4;
-	while (i--)
 	{
-		proto_tree_add_item(tree, hf_pg_stat_acting,
-				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		ti2 = proto_tree_add_item(tree, hf_pg_stat_acting,
+					  tvb, off, -1, ENC_NA);
+
+		i = tvb_get_letohl(tvb, off);
 		off += 4;
+
+		proto_item_append_text(ti2, ": [");
+		while (i--)
+		{
+			gint32 acting;
+
+			acting = tvb_get_letohl(tvb, off);
+			off += 4;
+
+			if (i == 0)
+			{
+				proto_item_append_text(ti2, "%"G_GINT32_MODIFIER"d", acting);
+			}
+			else
+			{
+				proto_item_append_text(ti2, "%"G_GINT32_MODIFIER"d, ", acting);
+			}
+		}
+		proto_item_append_text(ti2, "]");
+		proto_item_set_end(ti2, tvb, off);
 	}
 
 	if (enc.version >= 9)
@@ -4860,6 +5020,116 @@ guint c_dissect_pg_stats(proto_tree *root, int hf,
 		proto_tree_add_item(tree, hf_pg_stat_hitsetstatsinvalid,
 				    tvb, off, 1, ENC_LITTLE_ENDIAN);
 		off += 1;
+	}
+
+	{
+		ti2 = proto_tree_add_item(tree, hf_pg_stat_blockedby,
+					  tvb, off, -1, ENC_NA);
+
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			guint32 id;
+
+			id = tvb_get_letohl(tvb, off);
+			off += 4;
+
+			proto_item_append_text(ti2, ", ID: %"G_GINT32_MODIFIER"u", id);
+		}
+
+		proto_item_set_end(ti2, tvb, off);
+	}
+
+	proto_tree_add_item(tree, hf_pg_stat_lastundegraded,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_pg_stat_lastfullsized,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_pg_stat_hitsetbytesstatsinvalid,
+			    tvb, off, 1, ENC_LITTLE_ENDIAN);
+	off += 1;
+	proto_tree_add_item(tree, hf_pg_stat_lastpeered,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_pg_stat_lastbecamepeered,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+	proto_tree_add_item(tree, hf_pg_stat_pinstatsinvalid,
+			    tvb, off, 1, ENC_LITTLE_ENDIAN);
+	off += 1;
+
+	if (enc.version >= 23)
+	{
+		proto_tree_add_item(tree, hf_pg_stat_snaptrimqlen,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		if (enc.version >= 24)
+		{
+			proto_tree_add_item(tree, hf_pg_stat_topstate,
+					    tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			ti2 = proto_tree_add_item(tree, hf_pg_stat_purgedsnaps,
+						  tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_pg_stat_purgedsnaps);
+
+			i = tvb_get_letohl(tvb, off);
+			off += 4;
+			while (i--)
+			{
+				proto_tree_add_item(subtree, hf_pg_stat_snap_id,
+						    tvb, off, 8, ENC_LITTLE_ENDIAN);
+				off += 8;
+			}
+			proto_item_set_end(ti2, tvb, off);
+		}
+
+		if (enc.version >= 25)
+		{
+			proto_tree_add_item(tree, hf_pg_stat_manifeststatsinvalid,
+					    tvb, off, 1, ENC_LITTLE_ENDIAN);
+			off += 1;
+		}
+
+		if (enc.version >= 26)
+		{
+			ti2 = proto_tree_add_item(tree, hf_pg_stat_availnomissing,
+						  tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_pg_stat_availnomissing);
+
+			i = tvb_get_letohl(tvb, off);
+			off += 4;
+			while (i--)
+			{
+				off = c_dissect_pg_shard(subtree, tvb, off);
+			}
+			proto_item_set_end(ti2, tvb, off);
+
+			guint32 j;
+			ti2 = proto_tree_add_item(tree, hf_pg_objectlocation,
+						  tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_pg_stat_objectlocation);
+
+			i = tvb_get_letohl(tvb, off);
+			off += 4;
+			while (i--)
+			{
+				j = tvb_get_letohl(tvb, off);
+				off += 4;
+				while (j--)
+				{
+					off = c_dissect_pg_shard(ti2, tvb, off);
+				}
+
+				proto_tree_add_item(ti2, hf_pg_objects,
+						    tvb, off, 4, ENC_LITTLE_ENDIAN);
+				off += 4;
+			}
+			proto_item_set_end(ti2, tvb, off);
+		}
 	}
 
 	c_warn_size(tree, tvb, off, enc.end, data);
@@ -6674,6 +6944,29 @@ guint c_dissect_msg_pgstats(proto_tree *root,
 			    tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
 
+	if (data->header.ver >= 2)
+	{
+		proto_item *ti2;
+		proto_tree *subtree;
+		gint64 pool_id;
+
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			ti2 = proto_tree_add_item(tree, hf_msg_pgstats_poolstat, tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_msg_pgstats_poolstat);
+
+			pool_id = tvb_get_letoh64(tvb, off);
+			off += 8;
+			proto_item_append_text(ti2, ", Pool ID: %"G_GINT64_MODIFIER"d", pool_id);
+
+			off = c_dissect_objectstore_statfs(subtree, tvb, off, data);
+
+			proto_item_set_end(ti2, tvb, off);
+		}
+	}
+
 	return off;
 }
 
@@ -8479,8 +8772,8 @@ proto_register_ceph(void)
 			FT_UINT32, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
-		{ &hf_pg_stat_state, {
-			"State", "ceph.pg_stat.state",
+		{ &hf_pg_stat_oldstate, {
+			"Old State", "ceph.pg_stat.oldstate",
 			FT_UINT32, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
@@ -8541,12 +8834,12 @@ proto_register_ceph(void)
 		} },
 		{ &hf_pg_stat_up, {
 			"Up", "ceph.pg_stat.up",
-			FT_UINT32, BASE_DEC, NULL, 0,
+			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
 		{ &hf_pg_stat_acting, {
 			"Acting", "ceph.pg_stat.acting",
-			FT_UINT32, BASE_DEC, NULL, 0,
+			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
 		{ &hf_pg_stat_lastfresh, {
@@ -8627,6 +8920,86 @@ proto_register_ceph(void)
 		{ &hf_pg_stat_hitsetstatsinvalid, {
 			"HitSet Stats Invalid", "ceph.pg_stat.hitsetstatsinvalid",
 			FT_BOOLEAN, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_blockedby, {
+			"Blocked By", "ceph.pg_stat.blockedby",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_lastundegraded, {
+			"Last Undegraded", "ceph.pg_stat.lastundegraded",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_lastfullsized, {
+			"Last Fullsized", "ceph.pg_stat.lastfullsized",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_hitsetbytesstatsinvalid, {
+			"HitSet Bytes Stats Invalid", "ceph.pg_stat.hitsetbytesstatsinvalid",
+			FT_BOOLEAN, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_lastpeered, {
+			"Last Peered", "ceph.pg_stat.lastpeered",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_lastbecamepeered, {
+			"Last Became Peered", "ceph.pg_stat.lastbecamepeered",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_pinstatsinvalid, {
+			"Pin Stats Invalid", "ceph.pg_stat.pinstatsinvalid",
+			FT_BOOLEAN, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_snaptrimqlen, {
+			"Snap Trimq Len", "ceph.pg_stat.snaptrimqlen",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_topstate, {
+			"Top State", "ceph.pg_stat.topstate",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_purgedsnaps, {
+			"Purged Snaps", "ceph.pg_stat.purgedsnaps",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_snap_id, {
+			"Snapshot ID", "ceph.pg_stat.snap_id",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_manifeststatsinvalid, {
+			"Manifest Stats Invalid", "ceph.pg_stat.manifeststatsinvalid",
+			FT_BOOLEAN, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_availnomissing, {
+			"Avail No Missing", "ceph.pg_stat.availnomissing",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_shard, {
+			"PG Shard", "ceph.pg_shard",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_objectlocation, {
+			"Object Location", "ceph.pg.objectlocation",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_objects, {
+			"PG Objects", "ceph.pg.objects",
+			FT_INT32, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
 		{ &hf_osd_superblock, {
@@ -9789,8 +10162,8 @@ proto_register_ceph(void)
 			"The total number of objects including redundant "
 			"copies (objects*replicas).", HFILL
 		} },
-		{ &hf_statsum_missing, {
-			"Missing Objects", "ceph.statsum.missing",
+		{ &hf_statsum_missing_on_primary, {
+			"Missing Objects On Primary", "ceph.statsum.missingonprimary",
 			FT_UINT64, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
@@ -9872,6 +10245,101 @@ proto_register_ceph(void)
 		} },
 		{ &hf_statsum_hitset_archive, {
 			"Hit Set Archive", "ceph.statsum.hitset_archive",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_misplaced, {
+			"Misplaced", "ceph.statsum.misplaced",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_bytes_hitset_archive, {
+			"Hit Set Archive Bytes", "ceph.statsum.byteshitsetarchive",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_flush, {
+			"Flush", "ceph.statsum.flush",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_flushkb, {
+			"Flush KB", "ceph.statsum.flushkb",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_evict, {
+			"Evict", "ceph.statsum.evict",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_evictkb, {
+			"Evict KB", "ceph.statsum.evictkb",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_promote, {
+			"Promote", "ceph.statsum.promote",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_flushmode_high, {
+			"Flush Mode High", "ceph.statsum.flushmodehigh",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_flushmode_low, {
+			"Flush Mode Low", "ceph.statsum.flushmodelow",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_flushmode_some, {
+			"Flush Mode Some", "ceph.statsum.flushmodesome",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_flushmode_full, {
+			"Flush Mode Full", "ceph.statsum.flushmodefull",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_pinned, {
+			"Pinned", "ceph.statsum.pinned",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_missing, {
+			"Missing", "ceph.statsum.missing",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_legacy_snapsets, {
+			"Legacy Snapsets", "ceph.statsum.legacysnapsets",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_largeomap, {
+			"Large Omap", "ceph.statsum.largeomap",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_manifest, {
+			"Manifest", "ceph.statsum.manifest",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_omapbytes, {
+			"OMAP Bytes", "ceph.statsum.omapbytes",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_omapkeys, {
+			"OMAP Keys", "ceph.statsum.omapkeys",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_statsum_repaired, {
+			"Repaired", "ceph.statsum.repaired",
 			FT_UINT64, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
@@ -11145,6 +11613,11 @@ proto_register_ceph(void)
 			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
 			NULL, HFILL
 		} },
+		{ &hf_msg_pgstats_poolstat, {
+			"Pool Stat", "ceph.msg.pgstats.poolstat",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
 		{ &hf_msg_osd_pg_create, {
 			"PG Create", "ceph.msg.osd.pg.create",
 			FT_NONE, BASE_NONE, NULL, 0,
@@ -11409,6 +11882,9 @@ proto_register_ceph(void)
 		&ett_osd_alerts,
 		&ett_osd_hbtime,
 		&ett_pg_stat,
+		&ett_pg_stat_purgedsnaps,
+		&ett_pg_stat_availnomissing,
+		&ett_pg_stat_objectlocation,
 		&ett_osd_map,
 		&ett_osd_map_client,
 		&ett_osd_map_pool,
@@ -11465,6 +11941,7 @@ proto_register_ceph(void)
 		&ett_msg_osd_boot,
 		&ett_msg_pgstats,
 		&ett_msg_pgstats_pgstat,
+		&ett_msg_pgstats_poolstat,
 		&ett_msg_osd_pg_create,
 		&ett_msg_osd_pg_create_mkpg,
 		&ett_msg_client_caps,
