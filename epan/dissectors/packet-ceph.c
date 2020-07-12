@@ -564,11 +564,19 @@ static int hf_msg_auth_supportedproto_proto	 = -1;
 static int hf_msg_auth_supportedproto_gid	 = -1;
 static int hf_msg_auth_cephx			 = -1;
 static int hf_msg_auth_cephx_req_type		 = -1;
+static int hf_msg_auth_cephx_clientchallenge	 = -1;
+static int hf_msg_auth_cephx_key		 = -1;
+static int hf_msg_auth_cephx_ticket		 = -1;
+static int hf_msg_auth_cephx_ticket_secretid	 = -1;
+static int hf_msg_auth_cephx_ticket_blob	 = -1;
+static int hf_msg_auth_cephx_otherkeys		 = -1;
+static int hf_msg_auth_cephx_globalid		 = -1;
+static int hf_msg_auth_cephx_serviceid		 = -1;
 static int hf_msg_auth_monmap_epoch		 = -1;
 static int hf_msg_auth_reply			 = -1;
 static int hf_msg_auth_reply_proto		 = -1;
 static int hf_msg_auth_reply_result		 = -1;
-static int hf_msg_auth_reply_global_id		 = -1;
+static int hf_msg_auth_reply_serverchallenge	 = -1;
 static int hf_msg_auth_reply_msg		 = -1;
 static int hf_msg_mon_getverison		 = -1;
 static int hf_msg_mon_getverison_tid		 = -1;
@@ -885,6 +893,7 @@ static gint ett_msg_mon_sub_ack		   = -1;
 static gint ett_msg_auth		   = -1;
 static gint ett_msg_auth_supportedproto	   = -1;
 static gint ett_msg_auth_cephx		   = -1;
+static gint ett_msg_auth_cephx_ticket	   = -1;
 static gint ett_msg_authreply		   = -1;
 static gint ett_msg_mon_getversion	   = -1;
 static gint ett_msg_mon_getversionreply	   = -1;
@@ -5415,6 +5424,34 @@ guint c_dissect_msg_mon_sub_ack(proto_tree *root,
 	return off;
 }
 
+/** Dissect an struct CephXTicketBlob */
+static
+guint c_dissect_cephx_ticketblob(proto_tree *root,
+				 tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	guint8 ver;
+
+	/* struct CephXTicketBlob from ceph:/src/auth/cephx/CephxProtocol.h */
+
+	ti = proto_tree_add_item(root, hf_msg_auth_cephx_ticket, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_msg_auth_cephx_ticket);
+
+	ver = tvb_get_guint8(tvb, off);
+	off += 1;
+	c_warn_ver(ti, ver, 1, 1, data);
+
+	proto_tree_add_item(tree, hf_msg_auth_cephx_ticket_secretid,
+			    tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	off = c_dissect_data(tree, hf_msg_auth_cephx_ticket_blob, tvb, off);
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
 /** Authentication Request 0x0011. */
 static
 guint c_dissect_msg_auth(proto_tree *root,
@@ -5424,7 +5461,7 @@ guint c_dissect_msg_auth(proto_tree *root,
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree, *subtree;
-	guint off = 0, expectedoff;
+	guint off = 0;
 	guint8 ver;
 	guint32 i, len;
 	c_auth_proto proto;
@@ -5441,9 +5478,6 @@ guint c_dissect_msg_auth(proto_tree *root,
 	proto = (c_auth_proto)tvb_get_letohl(tvb, off);
 	proto_tree_add_item(tree, hf_msg_auth_proto,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
-	off += 4;
-
-	expectedoff = off + 4 + tvb_get_letohl(tvb, off);
 	off += 4;
 
 	switch (proto)
@@ -5480,7 +5514,18 @@ guint c_dissect_msg_auth(proto_tree *root,
 		break;
 	case C_AUTH_PROTO_CEPHX:
 	{
+		/* CephxServiceHandler::handle_request */
+		/* ceph:/src/auth/cephx/CephxServiceHandler.cc */
+
+		/* struct CephXRequestHeader */
+		/* ceph:/src/auth/cephx/CephxProtocol.h */
+
+		guint32 cephx_len, cephx_end;
 		c_cephx_req_type type;
+
+		cephx_len = tvb_get_letohl(tvb, off);
+		off += 4;
+		cephx_end = cephx_len + off;
 
 		ti2 = proto_tree_add_item(tree, hf_msg_auth_cephx, tvb, off, -1, ENC_NA);
 		subtree = proto_item_add_subtree(ti2, ett_msg_auth_cephx);
@@ -5492,10 +5537,58 @@ guint c_dissect_msg_auth(proto_tree *root,
 
 		switch (type)
 		{
+		case C_CEPHX_REQ_AUTH_SESSIONKEY:
+		{
+			/* struct CephXAuthenticate */
+			/* ceph:/src/auth/cephx/CephxProtocol.h */
+
+			ver = tvb_get_guint8(tvb, off);
+			off += 1;
+			c_warn_ver(ti2, ver, 1, 2, data);
+
+			proto_tree_add_item(subtree, hf_msg_auth_cephx_clientchallenge,
+					    tvb, off, 8, ENC_LITTLE_ENDIAN);
+			off += 8;
+
+			proto_tree_add_item(subtree, hf_msg_auth_cephx_key,
+					    tvb, off, 8, ENC_LITTLE_ENDIAN);
+			off += 8;
+
+			off = c_dissect_cephx_ticketblob(subtree, tvb, off, data);
+
+			if (ver >= 2)
+			{
+				proto_tree_add_item(subtree, hf_msg_auth_cephx_otherkeys,
+						    tvb, off, 4, ENC_LITTLE_ENDIAN);
+				off += 4;
+			}
+			break;
+		}
+		case C_CEPHX_REQ_PRINCIPAL_SESSIONKEY:
+		{
+			/* struct CephXAuthenticate */
+			/* ceph:/src/auth/cephx/CephxProtocol.h */
+
+			ver = tvb_get_guint8(tvb, off);
+			off += 1;
+			c_warn_ver(ti2, ver, 1, 1, data);
+
+			proto_tree_add_item(subtree, hf_msg_auth_cephx_globalid,
+					    tvb, off, 8, ENC_LITTLE_ENDIAN);
+			off += 8;
+
+			proto_tree_add_item(subtree, hf_msg_auth_cephx_serviceid,
+					    tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			off = c_dissect_cephx_ticketblob(subtree, tvb, off, data);
+			break;
+		}
 		default:
 			expert_add_info(data->pinfo, ti2, &ei_union_unknown);
 		}
 
+		c_warn_size(subtree, tvb, off, cephx_end, data);
 		proto_item_append_text(ti2, ", Request Type: %s",
 				       c_cephx_req_type_string(type));
 		break;
@@ -5503,9 +5596,6 @@ guint c_dissect_msg_auth(proto_tree *root,
 	default:
 		expert_add_info(data->pinfo, ti, &ei_union_unknown);
 	}
-
-	c_warn_size(tree, tvb, off, expectedoff, data);
-	off = expectedoff;
 
 	if (off+4 == front_len) { /* If there is an epoch. */
 		proto_tree_add_item(tree, hf_msg_auth_monmap_epoch,
@@ -5527,7 +5617,8 @@ guint c_dissect_msg_auth_reply(proto_tree *root,
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0, expectedoff;
+	guint off = 0;
+	guint8 ver;
 	c_auth_proto proto;
 
 	/* ceph:/src/messages/MAuthReply.h */
@@ -5544,21 +5635,37 @@ guint c_dissect_msg_auth_reply(proto_tree *root,
 	proto_tree_add_item(tree, hf_msg_auth_reply_result,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
-	proto_tree_add_item(tree, hf_msg_auth_reply_global_id,
+	proto_tree_add_item(tree, hf_msg_auth_cephx_globalid,
 			    tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
 
-	expectedoff = off + 4 + tvb_get_letohl(tvb, off);
-	off += 4;
-
 	switch (proto)
 	{
+	case C_AUTH_PROTO_CEPHX:
+	{
+		/* struct CephXServerChallenge */
+		/* ceph:/src/auth/cephx/CephxProtocol.h */
+
+		guint32 cephx_len, cephx_end;
+
+		cephx_len = tvb_get_letohl(tvb, off);
+		off += 4;
+		cephx_end = cephx_len + off;
+
+		ver = tvb_get_guint8(tvb, off);
+		off += 1;
+		c_warn_ver(ti, ver, 1, 1, data);
+
+		proto_tree_add_item(tree, hf_msg_auth_reply_serverchallenge,
+				    tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+
+		c_warn_size(tree, tvb, off, cephx_end, data);
+		break;
+	}
 	default:
 		expert_add_info(data->pinfo, ti, &ei_union_unknown);
 	}
-
-	c_warn_size(tree, tvb, off, expectedoff, data);
-	off = expectedoff;
 
 	off = c_dissect_str(tree, hf_msg_auth_reply_msg, NULL, tvb, off);
 
@@ -10818,6 +10925,46 @@ proto_register_ceph(void)
 			FT_UINT16, BASE_HEX, VALS(c_cephx_req_type_strings), 0,
 			NULL, HFILL
 		} },
+		{ &hf_msg_auth_cephx_clientchallenge, {
+			"Client Challenge", "ceph.msg.auth.cephx.clientchallenge",
+			FT_UINT64, BASE_HEX, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_auth_cephx_key, {
+			"Key", "ceph.msg.auth.cephx.key",
+			FT_UINT64, BASE_HEX, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_auth_cephx_ticket, {
+			"Ticket", "ceph.msg.auth.cephx.ticket",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_auth_cephx_ticket_secretid, {
+			"Secret ID", "ceph.msg.auth.cephx.ticket.secretid",
+			FT_UINT64, BASE_HEX, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_auth_cephx_ticket_blob, {
+			"Blob", "ceph.msg.auth.cephx.ticket.blob",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_auth_cephx_otherkeys, {
+			"Other Keys", "ceph.msg.auth.cephx.otherkeys",
+			FT_UINT32, BASE_HEX, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_auth_cephx_globalid, {
+			"Global ID", "ceph.msg.auth.cephx.globalid",
+			FT_UINT64, BASE_HEX, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_auth_cephx_serviceid, {
+			"Service ID", "ceph.msg.auth.cephx.serviceid",
+			FT_UINT32, BASE_HEX, NULL, 0,
+			NULL, HFILL
+		} },
 		{ &hf_msg_auth_monmap_epoch, {
 			"Monmap epoch", "ceph.msg.auth.monmap_epoch",
 			FT_UINT32, BASE_DEC, NULL, 0,
@@ -10838,8 +10985,8 @@ proto_register_ceph(void)
 			FT_INT32, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
-		{ &hf_msg_auth_reply_global_id, {
-			"Global ID", "ceph.msg.auth_reply.id",
+		{ &hf_msg_auth_reply_serverchallenge, {
+			"Server Challenge", "ceph.msg.auth_reply.serverchallenge",
 			FT_UINT64, BASE_HEX, NULL, 0,
 			NULL, HFILL
 		} },
@@ -12081,6 +12228,7 @@ proto_register_ceph(void)
 		&ett_msg_auth,
 		&ett_msg_auth_supportedproto,
 		&ett_msg_auth_cephx,
+		&ett_msg_auth_cephx_ticket,
 		&ett_msg_authreply,
 		&ett_msg_mon_getversion,
 		&ett_msg_mon_getversionreply,
