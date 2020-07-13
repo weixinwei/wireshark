@@ -169,7 +169,32 @@ static int hf_pgpool_cache_targetfullratio	 = -1;
 static int hf_pgpool_cache_flushage_min		 = -1;
 static int hf_pgpool_cache_evictage_min		 = -1;
 static int hf_pgpool_erasurecode_profile	 = -1;
+static int hf_pgpool_lastforceresendpreluminous	 = -1;
+static int hf_pgpool_readrecency_min		 = -1;
+static int hf_pgpool_expectednumobjects		 = -1;
+static int hf_pgpool_cache_targetdirtyhighratio	 = -1;
+static int hf_pgpool_writerecency_min		 = -1;
+static int hf_pgpool_usegmthitset		 = -1;
+static int hf_pgpool_fastread			 = -1;
+static int hf_pgpool_hitset_gradedecayrate	 = -1;
+static int hf_pgpool_hitset_searchlastn		 = -1;
+static int hf_pgpool_opts			 = -1;
+static int hf_pgpool_lastforceresendprenautilus	 = -1;
+static int hf_pgpool_appmeta			 = -1;
+static int hf_pgpool_appmeta_value		 = -1;
+static int hf_pgpool_created			 = -1;
+static int hf_pgpool_pgnum_target		 = -1;
+static int hf_pgpool_pgpnum_target		 = -1;
+static int hf_pgpool_pgnum_pending		 = -1;
+static int hf_pgpool_lastepochstarted		 = -1;
+static int hf_pgpool_lastepochclean		 = -1;
 static int hf_pgpool_lastforceresend		 = -1;
+static int hf_pgpool_pg_autoscalemode		 = -1;
+static int hf_pgpool_pg_lastmergemeta		 = -1;
+static int hf_pgpool_pgmeta_sourcepgid		 = -1;
+static int hf_pgpool_pgmeta_readyepoch		 = -1;
+static int hf_pgpool_pgmeta_sourceversion	 = -1;
+static int hf_pgpool_pgmeta_targetversion	 = -1;
 static int hf_pgpool_flag_hashpool		 = -1;
 static int hf_pgpool_flag_full			 = -1;
 static int hf_pgpool_flag_fake_ec_pool		 = -1;
@@ -229,8 +254,9 @@ static int hf_pg_stat_lastbecamepeered		 = -1;
 static int hf_pg_stat_pinstatsinvalid		 = -1;
 static int hf_pg_stat_snaptrimqlen		 = -1;
 static int hf_pg_stat_topstate			 = -1;
-static int hf_pg_stat_purgedsnaps		 = -1;
-static int hf_pg_stat_snap_id			 = -1;
+static int hf_pg_stat_snappurged		 = -1;
+static int hf_pg_stat_snappurged_from		 = -1;
+static int hf_pg_stat_snappurged_to		 = -1;
 static int hf_pg_stat_manifeststatsinvalid	 = -1;
 static int hf_pg_stat_availnomissing		 = -1;
 static int hf_pg_shard				 = -1;
@@ -847,6 +873,10 @@ static gint ett_pgpool			   = -1;
 static gint ett_pgpool_snap		   = -1;
 static gint ett_pgpool_snapdel		   = -1;
 static gint ett_pgpool_property		   = -1;
+static gint ett_pgpool_opts		   = -1;
+static gint ett_pgpool_appmeta		   = -1;
+static gint ett_pgpool_lastmergemeta	   = -1;
+static gint ett_pgpool_pgmeta		   = -1;
 static gint ett_mon_map			   = -1;
 static gint ett_mon_map_address		   = -1;
 static gint ett_mon_map_features	   = -1;
@@ -865,7 +895,7 @@ static gint ett_objectstore		   = -1;
 static gint ett_osd_alerts		   = -1;
 static gint ett_osd_hbtime		   = -1;
 static gint ett_pg_stat			   = -1;
-static gint ett_pg_stat_purgedsnaps	   = -1;
+static gint ett_pg_stat_snappurged	   = -1;
 static gint ett_pg_stat_availnomissing	   = -1;
 static gint ett_pg_stat_objectlocation	   = -1;
 static gint ett_osd_map			   = -1;
@@ -1472,6 +1502,13 @@ C_MAKE_STRINGS(c_pgpool_type, 2)
 	V(C_PGPOOL_CACHEMODE_READONLY,	0x03, "Handle reads, forward writes [not strongly consistent]")
 
 C_MAKE_STRINGS_EXT(c_pgpool_cachemode, 2)
+
+#define c_pgpool_pg_autoscalemode_strings_VALUE_STRING_LIST(V) \
+	V(C_PGPOOL_PG_AUTOSCALEMODE_OFF,	0x00, "OFF")	\
+	V(C_PGPOOL_PG_AUTOSCALEMODE_WARN,	0x01, "WARN")	\
+	V(C_PGPOOL_PG_AUTOSCALEMODE_ON,		0x02, "ON")
+
+C_MAKE_STRINGS_EXT(c_pgpool_pg_autoscalemode, 2)
 
 #define c_hitset_params_type_strings_VALUE_STRING_LIST(V) \
 	V(C_HITSET_PARAMS_TYPE_NONE,		0x00, "None")		 \
@@ -3004,6 +3041,46 @@ guint c_dissect_snapinfo(proto_tree *root,
 	return off;
 }
 
+/** Dissect a pg merge meta. */
+static guint c_dissect_pg_merge_meta(proto_tree *root, gint hf,
+				     tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+
+	/** pg_merge_meta_t from ceph:/src/osd/osd_types.h */
+
+	ti = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pgpool_pgmeta);
+
+	off = c_dissect_encoded(tree, &enc, 1, 1, tvb, off, data);
+
+	off = c_dissect_pg(tree, hf_pgpool_pgmeta_sourcepgid, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pgpool_pgmeta_readyepoch,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	proto_tree_add_item(tree, hf_pgpool_lastepochstarted,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	proto_tree_add_item(tree, hf_pgpool_lastepochclean,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	off = c_dissect_eversion(tree, hf_pgpool_pgmeta_sourceversion, tvb, off, data);
+
+	off = c_dissect_eversion(tree, hf_pgpool_pgmeta_targetversion, tvb, off, data);
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
 /** Dissect a pg pool. */
 static
 guint c_dissect_pgpool(proto_tree *root,
@@ -3015,6 +3092,7 @@ guint c_dissect_pgpool(proto_tree *root,
 	guint32 i;
 	c_pgpool_type type;
 	c_pgpool_cachemode cachemode;
+	c_pgpool_pg_autoscalemode autoscalemode;
 
 	static const int *flags_low[] = {
 		&hf_pgpool_flag_hashpool,
@@ -3031,7 +3109,7 @@ guint c_dissect_pgpool(proto_tree *root,
 	ti   = proto_tree_add_item(root, hf_pgpool, tvb, off, -1, ENC_NA);
 	tree = proto_item_add_subtree(ti, ett_pgpool);
 
-	off = c_dissect_encoded(tree, &enc, 5, 15, tvb, off, data);
+	off = c_dissect_encoded(tree, &enc, 5, 29, tvb, off, data);
 
 	type = (c_pgpool_type)tvb_get_guint8(tvb, off);
 	proto_tree_add_item(tree, hf_pgpool_type,
@@ -3217,16 +3295,183 @@ guint c_dissect_pgpool(proto_tree *root,
 
 	off = c_dissect_str(tree, hf_pgpool_erasurecode_profile, NULL, tvb, off);
 
-	proto_tree_add_item(tree, hf_pgpool_lastforceresend,
+	proto_tree_add_item(tree, hf_pgpool_lastforceresendpreluminous,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
+
+	if (enc.version >= 16)
+	{
+		proto_tree_add_item(tree, hf_pgpool_readrecency_min,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 17)
+	{
+		proto_tree_add_item(tree, hf_pgpool_expectednumobjects,
+				    tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+	}
+
+	if (enc.version >= 19)
+	{
+		proto_tree_add_item(tree, hf_pgpool_cache_targetdirtyhighratio,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 20)
+	{
+		proto_tree_add_item(tree, hf_pgpool_writerecency_min,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 21)
+	{
+		proto_tree_add_item(tree, hf_pgpool_usegmthitset,
+				    tvb, off, 1, ENC_LITTLE_ENDIAN);
+		off += 1;
+	}
+
+	if (enc.version >= 22)
+	{
+		proto_tree_add_item(tree, hf_pgpool_fastread,
+				    tvb, off, 1, ENC_LITTLE_ENDIAN);
+		off += 1;
+	}
+
+	if (enc.version >= 23)
+	{
+		proto_tree_add_item(tree, hf_pgpool_hitset_gradedecayrate,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+		proto_tree_add_item(tree, hf_pgpool_hitset_searchlastn,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 24)
+	{
+		c_encoded enc1;
+
+		ti2 = proto_tree_add_item(tree, hf_pgpool_opts, tvb, off, -1, ENC_NA);
+		subtree = proto_item_add_subtree(ti2, ett_pgpool_opts);
+
+		off = c_dissect_encoded(tree, &enc1, 1, 2, tvb, off, data);
+
+		// TODO:
+		off = enc1.end;
+		proto_item_set_end(ti2, tvb, enc1.end);
+	}
+
+	if (enc.version >= 25)
+	{
+		proto_tree_add_item(tree, hf_pgpool_lastforceresendprenautilus,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 26)
+	{
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			proto_item *ti3;
+			c_str appname;
+			guint32 j;
+
+			ti2 = proto_tree_add_item(tree, hf_pgpool_appmeta, tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_pgpool_appmeta);
+
+			appname.size = tvb_get_letohl(tvb, off);
+			off += 4;
+			appname.str = (char *)tvb_get_string_enc(wmem_packet_scope(),
+								 tvb, off, appname.size, ENC_ASCII);
+			off += appname.size;
+
+			j = tvb_get_letohl(tvb, off);
+			off += 4;
+			while (j--)
+			{
+				c_str key, value;
+
+				ti3 = proto_tree_add_item(tree, hf_pgpool_appmeta_value,
+							  tvb, off, -1, ENC_NA);
+
+				key.size = tvb_get_letohl(tvb, off);
+				off += 4;
+				key.str = (char *)tvb_get_string_enc(wmem_packet_scope(),
+								     tvb, off, key.size, ENC_ASCII);
+				off += key.size;
+
+				value.size = tvb_get_letohl(tvb, off);
+				off += 4;
+				value.str = (char *)tvb_get_string_enc(wmem_packet_scope(),
+								       tvb, off, value.size, ENC_ASCII);
+				off += value.size;
+
+				proto_item_append_text(ti3, ": %s = %s", key.str, value.str);
+				proto_item_set_end(ti3, tvb, off);
+			}
+
+			proto_item_append_text(ti2, ": %s", appname.str);
+			proto_item_set_end(ti2, tvb, off);
+		}
+	}
+
+	if (enc.version >= 27)
+	{
+		proto_tree_add_item(tree, hf_pgpool_created,
+				    tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+	}
+
+	if (enc.version >= 28)
+	{
+		proto_tree_add_item(tree, hf_pgpool_pgnum_target,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		proto_tree_add_item(tree, hf_pgpool_pgpnum_target,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		proto_tree_add_item(tree, hf_pgpool_pgnum_pending,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		proto_tree_add_item(tree, hf_pgpool_lastepochstarted,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		proto_tree_add_item(tree, hf_pgpool_lastepochclean,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		proto_tree_add_item(tree, hf_pgpool_lastforceresend,
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		autoscalemode = (c_pgpool_pg_autoscalemode)tvb_get_guint8(tvb, off);
+		proto_tree_add_item(tree, hf_pgpool_pg_autoscalemode,
+				    tvb, off, 1, ENC_LITTLE_ENDIAN);
+		off += 1;
+
+		if (enc.version >= 29)
+		{
+			off = c_dissect_pg_merge_meta(tree, hf_pgpool_pg_lastmergemeta, tvb, off, data);
+		}
+	}
 
 	c_warn_size(tree, tvb, off, enc.end, data);
 	off = enc.end;
 
-	proto_item_append_text(ti, ", Type: %s, Cache Mode: %s",
+	proto_item_append_text(ti, ", Type: %s, Cache Mode: %s, Autoscale Mode: %s",
 			       c_pgpool_type_string(type),
-			       c_pgpool_cachemode_string(cachemode));
+			       c_pgpool_cachemode_string(cachemode),
+			       c_pgpool_pg_autoscalemode_string(autoscalemode));
 
 	return off;
 }
@@ -4076,7 +4321,7 @@ guint c_dissect_osdmap(proto_tree *root,
 
 	off += 4;
 
-	off = c_dissect_encoded(tree, &enc, 7, 7, tvb, off, data);
+	off = c_dissect_encoded(tree, &enc, 7, 8, tvb, off, data);
 	/* Check the blob size and encoded size match. */
 	c_warn_size(tree, tvb, enc.end, end, data);
 
@@ -4084,7 +4329,7 @@ guint c_dissect_osdmap(proto_tree *root,
 	ti2 = proto_tree_add_item(tree, hf_osdmap_client, tvb, off, -1, ENC_NA);
 	subtree = proto_item_add_subtree(ti2, ett_osd_map_client);
 
-	off = c_dissect_encoded(subtree, &enc2, 1, 3, tvb, off, data);
+	off = c_dissect_encoded(subtree, &enc2, 1, 9, tvb, off, data);
 	proto_item_set_len(ti2, enc2.size);
 
 	fsid = c_format_uuid(tvb, off);
@@ -4172,8 +4417,8 @@ guint c_dissect_osdmap(proto_tree *root,
 	while (i--)
 	{
 		proto_tree_add_item(subtree, hf_osdmap_osd_state,
-				    tvb, off, 1, ENC_LITTLE_ENDIAN);
-		off += 1;
+				    tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
 	}
 
 	i = tvb_get_letohl(tvb, off);
@@ -4286,6 +4531,11 @@ guint c_dissect_osdmap(proto_tree *root,
 		}
 	}
 
+	if (enc2.version >= 4)
+	{
+
+	}
+
 	c_warn_size(subtree, tvb, off, enc2.end, data);
 	off = enc2.end;
 	/*** End first inner ***/
@@ -4293,7 +4543,7 @@ guint c_dissect_osdmap(proto_tree *root,
 	/*** Start second inner ***/
 	ti2 = proto_tree_add_item(tree, hf_osdmap_osd, tvb, off, -1, ENC_NA);
 	subtree = proto_item_add_subtree(ti2, ett_osd_map_osd);
-	off = c_dissect_encoded(subtree, &enc2, 1, 1, tvb, off, data);
+	off = c_dissect_encoded(subtree, &enc2, 1, 9, tvb, off, data);
 	proto_item_set_len(ti2, enc2.size);
 
 	i = tvb_get_letohl(tvb, off);
@@ -4404,7 +4654,7 @@ guint c_dissect_osdmap_inc(proto_tree *root,
 
 	off += 4;
 
-	off = c_dissect_encoded(tree, &enc, 7, 7, tvb, off, data);
+	off = c_dissect_encoded(tree, &enc, 7, 8, tvb, off, data);
 	/* Check the blob size and encoded size match. */
 	c_warn_size(tree, tvb, enc.end, end, data);
 
@@ -5091,19 +5341,23 @@ guint c_dissect_pg_stats(proto_tree *root, int hf,
 					    tvb, off, 4, ENC_LITTLE_ENDIAN);
 			off += 4;
 
-			ti2 = proto_tree_add_item(tree, hf_pg_stat_purgedsnaps,
-						  tvb, off, -1, ENC_NA);
-			subtree = proto_item_add_subtree(ti2, ett_pg_stat_purgedsnaps);
-
 			i = tvb_get_letohl(tvb, off);
 			off += 4;
 			while (i--)
 			{
-				proto_tree_add_item(subtree, hf_pg_stat_snap_id,
+				ti2 = proto_tree_add_item(tree, hf_pg_stat_snappurged,
+							  tvb, off, -1, ENC_NA);
+				subtree = proto_item_add_subtree(ti2, ett_pg_stat_snappurged);
+
+				proto_tree_add_item(subtree, hf_pg_stat_snappurged_from,
 						    tvb, off, 8, ENC_LITTLE_ENDIAN);
 				off += 8;
+				proto_tree_add_item(subtree, hf_pg_stat_snappurged_to,
+						    tvb, off, 8, ENC_LITTLE_ENDIAN);
+				off += 8;
+
+				proto_item_set_end(ti2, tvb, off);
 			}
-			proto_item_set_end(ti2, tvb, off);
 		}
 
 		if (enc.version >= 25)
@@ -8996,10 +9250,135 @@ proto_register_ceph(void)
 			FT_STRING, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
+		{ &hf_pgpool_lastforceresendpreluminous, {
+			"Last Force Resend Pre Luminous", "ceph.pgpool.lastforceresendpreluminous",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Last epoch that forced clients to resend (pre-luminous clients only).", HFILL
+		} },
+		{ &hf_pgpool_readrecency_min, {
+			"Min Read Recency For Promote", "ceph.pgpool.readrecency_min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Minimum number of HitSet to check before promote on read.", HFILL
+		} },
+		{ &hf_pgpool_expectednumobjects, {
+			"Expected Num Objects", "ceph.pgpool.expectednumobjects",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			"Expected number of objects on this pool, a value of 0 indicates user does not specify any expected value.", HFILL
+		} },
+		{ &hf_pgpool_cache_targetdirtyhighratio, {
+			"Cache Target Dirty High Ratio", "ceph.pgpool.targetdirtyhighratio",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Cache: fraction of  target to flush with high speed.", HFILL
+		} },
+		{ &hf_pgpool_writerecency_min, {
+			"Min Write Recency For Promote", "ceph.pgpool.writerecency_min",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Minimum number of HitSet to check before promote on write.", HFILL
+		} },
+		{ &hf_pgpool_usegmthitset, {
+			"Use Gmt HitSet", "ceph.pgpool.usegmthitset",
+			FT_BOOLEAN, BASE_NONE, NULL, 0,
+			"Use gmt to name the hitset archive object.", HFILL
+		} },
+		{ &hf_pgpool_fastread, {
+			"Fast Read", "ceph.pgpool.fastread",
+			FT_BOOLEAN, BASE_NONE, NULL, 0,
+			"Whether turn on fast read on the pool or not.", HFILL
+		} },
+		{ &hf_pgpool_hitset_gradedecayrate, {
+			"HitSet Grade Decay Rate", "ceph.pgpool.hitset_gradedecayrate",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Current hit_set has highest priority on objects temperature count,the follow hit_set's priority decay by this params than pre hit_set.", HFILL
+		} },
+		{ &hf_pgpool_hitset_searchlastn, {
+			"HitSet Search Last N", "ceph.pgpool.hitset_searchlastn",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Accumulate atmost N hit_sets for temperature.", HFILL
+		} },
+		{ &hf_pgpool_opts, {
+			"Opts", "ceph.pgpool.opts",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgpool_lastforceresendprenautilus, {
+			"Last Force Resend Pre Nautilus", "ceph.pgpool.lastforceresendprenautilus",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Last epoch that forced clients to resend (pre-nautilus clients only).", HFILL
+		} },
+		{ &hf_pgpool_appmeta, {
+			"Application Metadata", "ceph.pgpool.appmeta",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgpool_appmeta_value, {
+			"Application Metadata Value", "ceph.pgpool.appmeta.value",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgpool_created, {
+			"Time Created", "ceph.pgpool.created",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgpool_pgnum_target, {
+			"PG Count Target", "ceph.pgpool.pgnum_target",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"pg_num we should converge toward", HFILL
+		} },
+		{ &hf_pgpool_pgpnum_target, {
+			"PGP Count Target", "ceph.pgpool.pgpnum_target",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"pgp_num we should converge toward", HFILL
+		} },
+		{ &hf_pgpool_pgnum_pending, {
+			"PG Count Pending", "ceph.pgpool.pgnum_pending",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"pg_num we are about to merge down to", HFILL
+		} },
+		{ &hf_pgpool_lastepochstarted, {
+			"Last Epoch Started", "ceph.pgpool.lastepochstarted",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgpool_lastepochclean, {
+			"Last Epoch CLean", "ceph.pgpool.lastepochclean",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
 		{ &hf_pgpool_lastforceresend, {
 			"Last Force Resend", "ceph.pgpool.lastforceresend",
 			FT_UINT32, BASE_DEC, NULL, 0,
-			"Last epoch that forced clients to resend.", HFILL
+			"Last epoch that forced clients to resend", HFILL
+		} },
+		{ &hf_pgpool_pg_autoscalemode, {
+			"Auto Scale Mode", "ceph.pgpool.pg.autoscalemode",
+			FT_UINT8, BASE_HEX|BASE_EXT_STRING, &c_pgpool_pg_autoscalemode_strings_ext, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgpool_pg_lastmergemeta, {
+			"Last PG Merge Metadata", "ceph.pgpool.pg.lastmergemeta",
+			FT_NONE, BASE_NONE, NULL, 0,
+			"Metadata for the most recent PG merge", HFILL
+		} },
+		{ &hf_pgpool_pgmeta_sourcepgid, {
+			"Source PG ID", "ceph.pgpool.pgmeta.sourcepgid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgpool_pgmeta_readyepoch, {
+			"Ready Epoch", "ceph.pgpool.pgmeta.readyepoch",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgpool_pgmeta_sourceversion, {
+			"Source Version", "ceph.pgpool.pgmeta.sourceversion",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgpool_pgmeta_targetversion, {
+			"Target Version", "ceph.pgpool.pgmeta.targetversion",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
 		} },
 		{ &hf_pgpool_flag_hashpool, {
 			"Hash Seed and Pool Together", "ceph.pgpool.flag.hashpool",
@@ -9296,14 +9675,19 @@ proto_register_ceph(void)
 			FT_UINT32, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
-		{ &hf_pg_stat_purgedsnaps, {
-			"Purged Snaps", "ceph.pg_stat.purgedsnaps",
+		{ &hf_pg_stat_snappurged, {
+			"Purged Snapshots", "ceph.pg_stat.snappurged",
 			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
-		{ &hf_pg_stat_snap_id, {
-			"Snapshot ID", "ceph.pg_stat.snap_id",
-			FT_UINT64, BASE_DEC, NULL, 0,
+		{ &hf_pg_stat_snappurged_from, {
+			"From", "ceph.pg_stat.snappurged.from",
+			FT_UINT64, BASE_HEX, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_stat_snappurged_to, {
+			"To", "ceph.pg_stat.snappurged.to",
+			FT_UINT64, BASE_HEX, NULL, 0,
 			NULL, HFILL
 		} },
 		{ &hf_pg_stat_manifeststatsinvalid, {
@@ -12238,6 +12622,10 @@ proto_register_ceph(void)
 		&ett_pgpool_snap,
 		&ett_pgpool_snapdel,
 		&ett_pgpool_property,
+		&ett_pgpool_opts,
+		&ett_pgpool_appmeta,
+		&ett_pgpool_lastmergemeta,
+		&ett_pgpool_pgmeta,
 		&ett_mon_map,
 		&ett_mon_map_address,
 		&ett_mon_map_features,
@@ -12256,7 +12644,7 @@ proto_register_ceph(void)
 		&ett_osd_alerts,
 		&ett_osd_hbtime,
 		&ett_pg_stat,
-		&ett_pg_stat_purgedsnaps,
+		&ett_pg_stat_snappurged,
 		&ett_pg_stat_availnomissing,
 		&ett_pg_stat_objectlocation,
 		&ett_osd_map,
