@@ -254,7 +254,7 @@ static int hf_pg_stat_lastbecamepeered		 = -1;
 static int hf_pg_stat_pinstatsinvalid		 = -1;
 static int hf_pg_stat_snaptrimqlen		 = -1;
 static int hf_pg_stat_topstate			 = -1;
-static int hf_pg_stat_snappurged		 = -1;
+static int hf_pg_stat_snapspurged		 = -1;
 static int hf_pg_stat_snappurged_from		 = -1;
 static int hf_pg_stat_snappurged_to		 = -1;
 static int hf_pg_stat_manifeststatsinvalid	 = -1;
@@ -562,6 +562,39 @@ static int hf_paxos				 = -1;
 static int hf_paxos_ver				 = -1;
 static int hf_paxos_mon				 = -1;
 static int hf_paxos_mon_tid			 = -1;
+static int hf_hobject_key			 = -1;
+static int hf_hobject_oid			 = -1;
+static int hf_hobject_snapid			 = -1;
+static int hf_hobject_hash			 = -1;
+static int hf_hobject_max			 = -1;
+static int hf_hobject_nspace			 = -1;
+static int hf_hobject_pool			 = -1;
+static int hf_pg_history_epochcreated		 = -1;
+static int hf_pg_history_lastepochstarted	 = -1;
+static int hf_pg_history_lastepochclean		 = -1;
+static int hf_pg_history_lastepochsplit		 = -1;
+static int hf_pg_history_sameintervalsince	 = -1;
+static int hf_pg_history_sameupsince		 = -1;
+static int hf_pg_history_sameprimarysince	 = -1;
+static int hf_pg_history_lastscrub		 = -1;
+static int hf_pg_history_lastscrubstamp		 = -1;
+static int hf_pg_history_lastdeepscrub	 	 = -1;
+static int hf_pg_history_lastdeepscrubstamp	 = -1;
+static int hf_pg_history_lastcleanscrubstamp	 = -1;
+static int hf_pg_history_lastepochmarkedfull	 = -1;
+static int hf_pg_history_lastintervalstarted	 = -1;
+static int hf_pg_history_lastintervalclean	 = -1;
+static int hf_pg_history_epochpoolcreated	 = -1;
+static int hf_pg_hitset_info			 = -1;
+static int hf_pg_hitset_info_begin		 = -1;
+static int hf_pg_hitset_info_end		 = -1;
+static int hf_pg_hitset_info_version		 = -1;
+static int hf_pg_hitset_info_usinggmt		 = -1;
+static int hf_pg_hitset_history			 = -1;
+static int hf_pg_hitset_history_lastupdate	 = -1;
+static int hf_pg_hitset_history_dummystamp	 = -1;
+static int hf_pg_hitset_history_dummyinfo	 = -1;
+static int hf_pg_hitset_history_info		 = -1;
 static int hf_msg_mon_map			 = -1;
 static int hf_msg_statfs			 = -1;
 static int hf_msg_statfs_fsid			 = -1;
@@ -785,6 +818,71 @@ static int hf_msg_osd_boot_addr_front		 = -1;
 static int hf_msg_osd_boot_metadata		 = -1;
 static int hf_msg_osd_boot_metadata_k		 = -1;
 static int hf_msg_osd_boot_metadata_v		 = -1;
+static int hf_msg_osd_pglog			 = -1;
+static int hf_msg_osd_pglog_epoch		 = -1;
+static int hf_pginfo				 = -1;
+static int hf_pginfo_spg			 = -1;
+static int hf_pginfo_spg_pgid			 = -1;
+static int hf_pginfo_lastupdate			 = -1;
+static int hf_pginfo_lastcomplete		 = -1;
+static int hf_pginfo_logtail			 = -1;
+static int hf_pginfo_oldlastbackfill		 = -1;
+static int hf_pginfo_stats			 = -1;
+static int hf_pginfo_pghistory			 = -1;
+static int hf_pginfo_snapspurged		 = -1;
+static int hf_pginfo_snapspurged_from		 = -1;
+static int hf_pginfo_snapspurged_to		 = -1;
+static int hf_pginfo_lastepochstarted		 = -1;
+static int hf_pginfo_lastuserversion		 = -1;
+static int hf_pginfo_lastbackfill		 = -1;
+static int hf_pginfo_lastbackfillbitwise	 = -1;
+static int hf_pginfo_lastintervalstarted	 = -1;
+static int hf_pglog				 = -1;
+static int hf_pglog_head			 = -1;
+static int hf_pglog_tail			 = -1;
+static int hf_pglog_backlog			 = -1;
+static int hf_pglog_entry			 = -1;
+static int hf_pglog_entry_op			 = -1;
+static int hf_pglog_entry_oldsoid		 = -1;
+static int hf_pglog_entry_soid			 = -1;
+static int hf_pglog_entry_version		 = -1;
+static int hf_pglog_entry_revertingto		 = -1;
+static int hf_pglog_entry_priorversion		 = -1;
+static int hf_pglog_entry_osdreqid		 = -1;
+static int hf_pglog_entry_osdreqid_name		 = -1;
+static int hf_pglog_entry_osdreqid_tid		 = -1;
+static int hf_pglog_entry_osdreqid_inc		 = -1;
+static int hf_pglog_entry_mtime			 = -1;
+static int hf_pglog_entry_snaps			 = -1;
+static int hf_pglog_entry_userversion		 = -1;
+static int hf_pglog_entry_moddesc		 = -1;
+static int hf_moddesc_canlocalrollback		 = -1;
+static int hf_moddesc_rollbackinfocompleted	 = -1;
+static int hf_moddesc_ops			 = -1;
+static int hf_moddesc_op_code			 = -1;
+static int hf_moddesc_op_append_oldsize		 = -1;
+static int hf_moddesc_op_delete_oldversion	 = -1;
+static int hf_moddesc_op_trydelete_oldversion	 = -1;
+static int hf_moddesc_op_setattrs_attr		 = -1;
+static int hf_moddesc_op_updatesnaps_snap	 = -1;
+static int hf_moddesc_op_rollbackextents	 = -1;
+static int hf_moddesc_op_rollbackextents_gen	 = -1;
+static int hf_moddesc_op_rollbackextents_extents = -1;
+static int hf_pglog_entry_extrareqid		 = -1;
+static int hf_pglog_entry_extrareqid_reqid	 = -1;
+static int hf_pglog_entry_extrareqid_version	 = -1;
+static int hf_pglog_entry_returncode		 = -1;
+static int hf_pglog_entry_extrareqid_returncodes = -1;
+static int hf_pglog_entry_extrareqid_returncodes_index = -1;
+static int hf_pglog_entry_extrareqid_returncodes_returncode = -1;
+static int hf_pglog_canrollbackto		 = -1;
+static int hf_pglog_rollbackinfotrimmedto	 = -1;
+static int hf_pglog_dup				 = -1;
+static int hf_pglog_dup_reqid			 = -1;
+static int hf_pglog_dup_version			 = -1;
+static int hf_pglog_dup_userversion		 = -1;
+static int hf_pglog_dup_returncode		 = -1;
+
 static int hf_msg_pgstats			 = -1;
 static int hf_msg_pgstats_fsid			 = -1;
 static int hf_msg_pgstats_pgstat		 = -1;
@@ -953,6 +1051,23 @@ static gint ett_msg_mon_paxos_value	   = -1;
 static gint ett_msg_mon_probe		   = -1;
 static gint ett_msg_osd_ping		   = -1;
 static gint ett_msg_osd_boot		   = -1;
+static gint ett_msg_osd_pglog		   = -1;
+static gint ett_pg_info			   = -1;
+static gint ett_pg_spg			   = -1;
+static gint ett_hobject			   = -1;
+static gint ett_pghistory		   = -1;
+static gint ett_pglog_snapspurged	   = -1;
+static gint ett_pg_hitset_info		   = -1;
+static gint ett_pg_hitset_history	   = -1;
+static gint ett_pg_log			   = -1;
+static gint ett_osd_reqid		   = -1;
+static gint ett_pglog_entry		   = -1;
+static gint ett_objectmoddesc		   = -1;
+static gint ett_objectmoddesc_op	   = -1;
+static gint ett_objectmoddesc_op_attr	   = -1;
+static gint ett_objectmoddesc_op_rollbackextents=-1;
+static gint ett_pglog_entry_extrareqid	   = -1;
+static gint ett_pglog_entry_extrareqid_returncodes=-1;
 static gint ett_msg_pgstats		   = -1;
 static gint ett_msg_pgstats_pgstat	   = -1;
 static gint ett_msg_pgstats_poolstat	   = -1;
@@ -1100,26 +1215,26 @@ static value_string_ext c_tag_v1_strings_ext = VALUE_STRING_EXT_INIT(c_tag_v1_st
 
 /** Message V2 Tags */
 #define c_tag_v2_strings_VALUE_STRING_LIST(V) \
-	V(C_TAG_V2_HELLO,			0x01, "")		     \
-	V(C_TAG_V2_AUTH_REQUEST,		0x02, "")		     \
+	V(C_TAG_V2_HELLO,			0x01, "") \
+	V(C_TAG_V2_AUTH_REQUEST,		0x02, "") \
 	V(C_TAG_V2_AUTH_BAD_METHOD,		0x03, "") \
-	V(C_TAG_V2_AUTH_REPLY_MORE,		0x04, "")   \
-	V(C_TAG_V2_AUTH_REQUEST_MORE,		0x05, "")   \
-	V(C_TAG_V2_AUTH_DONE,			0x06, "")					     \
-	V(C_TAG_V2_AUTH_SIGNATURE,		0x07, "")					     \
-	V(C_TAG_V2_CLIENT_IDENT,		0x08, "")					     \
-	V(C_TAG_V2_SERVER_IDENT,		0x09, "")				     \
-	V(C_TAG_V2_IDENT_MISSING_FEATURES,	0x0A, "")				     \
-	V(C_TAG_V2_SESSION_RECONNECT,		0x0B, "")					     \
-	V(C_TAG_V2_SESSION_RESET,		0x0C, "")				     \
-	V(C_TAG_V2_SESSION_RETRY,		0x0D, "")	     \
-	V(C_TAG_V2_SESSION_RETRY_GLOBAL,	0x0E, "")					     \
-	V(C_TAG_V2_SESSION_RECONNECT_OK,	0x0F, "")					     \
-	V(C_TAG_V2_WAIT, 			0x10, "")				     \
-	V(C_TAG_V2_MESSAGE, 			0x11, "")				     \
-	V(C_TAG_V2_KEEPALIVE2, 			0x12, "")				     \
-	V(C_TAG_V2_KEEPALIVE2_ACK, 		0x13, "")				     \
-	V(C_TAG_V2_ACK, 			0x14, "")				     \
+	V(C_TAG_V2_AUTH_REPLY_MORE,		0x04, "") \
+	V(C_TAG_V2_AUTH_REQUEST_MORE,		0x05, "") \
+	V(C_TAG_V2_AUTH_DONE,			0x06, "") \
+	V(C_TAG_V2_AUTH_SIGNATURE,		0x07, "") \
+	V(C_TAG_V2_CLIENT_IDENT,		0x08, "") \
+	V(C_TAG_V2_SERVER_IDENT,		0x09, "") \
+	V(C_TAG_V2_IDENT_MISSING_FEATURES,	0x0A, "") \
+	V(C_TAG_V2_SESSION_RECONNECT,		0x0B, "") \
+	V(C_TAG_V2_SESSION_RESET,		0x0C, "") \
+	V(C_TAG_V2_SESSION_RETRY,		0x0D, "") \
+	V(C_TAG_V2_SESSION_RETRY_GLOBAL,	0x0E, "") \
+	V(C_TAG_V2_SESSION_RECONNECT_OK,	0x0F, "") \
+	V(C_TAG_V2_WAIT, 			0x10, "") \
+	V(C_TAG_V2_MESSAGE, 			0x11, "") \
+	V(C_TAG_V2_KEEPALIVE2, 			0x12, "") \
+	V(C_TAG_V2_KEEPALIVE2_ACK, 		0x13, "") \
+	V(C_TAG_V2_ACK, 			0x14, "")
 
 VALUE_STRING_ENUM(c_tag_v2_strings);
 VALUE_STRING_ARRAY(c_tag_v2_strings);
@@ -1575,6 +1690,33 @@ const char *c_node_type_abbr_string(c_node_type val)
 {
 	return val_to_str(val, c_node_type_abbr_strings, "Unknown (0x%02x)");
 }
+
+/** PGLog OP. */
+#define c_pglog_op_strings_VALUE_STRING_LIST(V) \
+	V(C_PGLOG_OP_MODIFY,	  1,  "modify") \
+	V(C_PGLOG_OP_CLONE,	  2,  "clone") \
+	V(C_PGLOG_OP_DELETE,	  3,  "delete") \
+	V(C_PGLOG_OP_BACKLOG,	  4,  "backlog") \
+	V(C_PGLOG_OP_LOST_REVERT, 5,  "l_revert") \
+	V(C_PGLOG_OP_LOST_DELETE, 6,  "l_delete") \
+	V(C_PGLOG_OP_LOST_MARK,	  7,  "l_mark") \
+	V(C_PGLOG_OP_PROMOTE,	  8,  "promote") \
+	V(C_PGLOG_OP_CLEAN,	  9,  "clean") \
+	V(C_PGLOG_OP_ERROR,	  10, "error")
+
+C_MAKE_STRINGS_EXT(c_pglog_op, 2)
+
+/** Moddesc Op Code. */
+#define c_moddesc_op_code_strings_VALUE_STRING_LIST(V) \
+	V(C_MODDESC_OP_CODE_APPEND,		1, "APPEND") \
+	V(C_MODDESC_OP_CODE_SETATTRS,		2, "SETATTRS") \
+	V(C_MODDESC_OP_CODE_DELETE,		3, "DELETE") \
+	V(C_MODDESC_OP_CODE_CREATE,		4, "CREATE") \
+	V(C_MODDESC_OP_CODE_UPDATE_SNAPS,	5, "UPDATE_SNAPS") \
+	V(C_MODDESC_OP_CODE_TRY_DELETE,		6, "TRY_DELETE") \
+	V(C_MODDESC_OP_CODE_ROLLBACK_EXTENTS,	7, "ROLLBACK_EXTENTS")
+
+C_MAKE_STRINGS_EXT(c_moddesc_op_code, 2)
 
 #define C_MON_SUB_FLAG_ONETIME  0x01
 
@@ -5345,7 +5487,7 @@ guint c_dissect_pg_stats(proto_tree *root, int hf,
 			off += 4;
 			while (i--)
 			{
-				ti2 = proto_tree_add_item(tree, hf_pg_stat_snappurged,
+				ti2 = proto_tree_add_item(tree, hf_pg_stat_snapspurged,
 							  tvb, off, -1, ENC_NA);
 				subtree = proto_item_add_subtree(ti2, ett_pg_stat_snappurged);
 
@@ -7315,6 +7457,792 @@ guint c_dissect_msg_osd_boot(proto_tree *root,
 	return off;
 }
 
+/** Dissect an spg_t. */
+static
+guint c_dissect_spg(proto_tree *root, gint hf,
+		    tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+	gint8 shard_id;
+
+	/** spg_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pg_spg);
+
+	off = c_dissect_encoded(tree, &enc, 1, 1, tvb, off, data);
+
+	off = c_dissect_pg(tree, hf_pginfo_spg_pgid, tvb, off, data);
+
+	shard_id = tvb_get_gint8(tvb, off);
+	off += 1;
+
+	proto_item_append_text(ti, ", shard_id: %"G_GINT32_MODIFIER"d", (gint)shard_id);
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an hobject_t. */
+static
+guint c_dissect_hobject(proto_tree *root, gint hf,
+			tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+
+	/** hobject_t from ceph:/src/common/hobject.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_hobject);
+
+	off = c_dissect_encoded(tree, &enc, 3, 4, tvb, off, data);
+
+	if (enc.version >= 1)
+	{
+		off = c_dissect_str(tree, hf_hobject_key, NULL, tvb, off);
+	}
+
+	off = c_dissect_str(tree, hf_hobject_oid, NULL, tvb, off);
+
+	proto_tree_add_item(tree, hf_hobject_snapid, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_hobject_hash, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	if (enc.version >= 2)
+	{
+		proto_tree_add_item(tree, hf_hobject_max, tvb, off, 1, ENC_NA);
+		off += 1;
+	}
+
+	if (enc.version >= 4)
+	{
+		off = c_dissect_str(tree, hf_hobject_nspace, NULL, tvb, off);
+
+		proto_tree_add_item(tree, hf_hobject_pool, tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an pg_history_t. */
+static
+guint c_dissect_pghistory(proto_tree *root, gint hf,
+			  tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+
+	/* pg_history_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pghistory);
+
+	off = c_dissect_encoded(tree, &enc, 4, 9, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pg_history_epochcreated, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	proto_tree_add_item(tree, hf_pg_history_lastepochstarted, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	if (enc.version >= 3)
+	{
+		proto_tree_add_item(tree, hf_pg_history_lastepochclean, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	proto_tree_add_item(tree, hf_pg_history_lastepochsplit, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	proto_tree_add_item(tree, hf_pg_history_sameintervalsince, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	proto_tree_add_item(tree, hf_pg_history_sameupsince, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	proto_tree_add_item(tree, hf_pg_history_sameprimarysince, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	if (enc.version >= 2)
+	{
+		off = c_dissect_eversion(tree, hf_pg_history_lastscrub, tvb, off, data);
+
+		proto_tree_add_item(tree, hf_pg_history_lastscrubstamp, tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+	}
+
+	if (enc.version >= 5)
+	{
+		off = c_dissect_eversion(tree, hf_pg_history_lastdeepscrub, tvb, off, data);
+
+		proto_tree_add_item(tree, hf_pg_history_lastdeepscrubstamp, tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+	}
+
+	if (enc.version >= 6)
+	{
+		proto_tree_add_item(tree, hf_pg_history_lastcleanscrubstamp, tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+	}
+
+	if (enc.version >= 7)
+	{
+		proto_tree_add_item(tree, hf_pg_history_lastepochmarkedfull, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 8)
+	{
+		proto_tree_add_item(tree, hf_pg_history_lastintervalstarted, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		proto_tree_add_item(tree, hf_pg_history_lastintervalclean, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 9)
+	{
+		proto_tree_add_item(tree, hf_pg_history_epochpoolcreated, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an pg_hit_set_info_t. */
+static
+guint c_dissect_pg_hitset_info(proto_tree *root, gint hf,
+			       tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+
+	/* pg_hit_set_info_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pg_hitset_info);
+
+	off = c_dissect_encoded(tree, &enc, 1, 2, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pg_hitset_info_begin, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_pg_hitset_info_end, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	off = c_dissect_eversion(tree, hf_pg_hitset_info_version, tvb, off, data);
+
+	if (enc.version >= 2)
+	{
+		proto_tree_add_item(tree, hf_pg_hitset_info_usinggmt, tvb, off, 1, ENC_LITTLE_ENDIAN);
+		off += 1;
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an pg_hit_set_history_t. */
+static
+guint c_dissect_pg_hitset_history(proto_tree *root, gint hf,
+				  tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+	guint32 i;
+
+	/* pg_hit_set_history_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pg_hitset_history);
+
+	off = c_dissect_encoded(tree, &enc, 1, 1, tvb, off, data);
+
+	off = c_dissect_eversion(tree, hf_pg_hitset_history_lastupdate, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pg_hitset_history_dummystamp, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	off = c_dissect_pg_hitset_info(tree, hf_pg_hitset_history_dummyinfo, tvb, off, data);
+
+	i = tvb_get_letohl(tvb, off);
+	off += 4;
+	while (i--)
+	{
+		off = c_dissect_pg_hitset_info(tree, hf_pg_hitset_history_info, tvb, off, data);
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an pg_info_t. */
+static
+guint c_dissect_pginfo(proto_tree *root, gint hf,
+		       tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti, *ti2;
+	proto_tree *tree, *subtree;
+	c_encoded enc;
+	guint32 i;
+	gint8 shard_id;
+
+	/* pg_info_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pg_info);
+
+	off = c_dissect_encoded(tree, &enc, 26, 32, tvb, off, data);
+
+	off = c_dissect_pg(tree, hf_pginfo_spg_pgid, tvb, off, data);
+
+	off = c_dissect_eversion(tree, hf_pginfo_lastupdate, tvb, off, data);
+	off = c_dissect_eversion(tree, hf_pginfo_lastcomplete, tvb, off, data);
+	off = c_dissect_eversion(tree, hf_pginfo_logtail, tvb, off, data);
+
+	off = c_dissect_hobject(tree, hf_pginfo_oldlastbackfill, tvb, off, data);
+
+	off = c_dissect_pg_stats(tree, hf_pginfo_stats, tvb, off, data);
+
+	off = c_dissect_pghistory(tree, hf_pginfo_pghistory, tvb, off, data);
+
+	i = tvb_get_letohl(tvb, off);
+	off += 4;
+	while (i--)
+	{
+		ti2 = proto_tree_add_item(tree, hf_pginfo_snapspurged,
+					  tvb, off, -1, ENC_NA);
+		subtree = proto_item_add_subtree(ti2, ett_pglog_snapspurged);
+
+		proto_tree_add_item(subtree, hf_pginfo_snapspurged_from,
+				    tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+		proto_tree_add_item(subtree, hf_pginfo_snapspurged_to,
+				    tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+
+		proto_item_set_end(ti2, tvb, off);
+	}
+
+	proto_tree_add_item(tree, hf_pginfo_lastepochstarted, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	proto_tree_add_item(tree, hf_pginfo_lastuserversion, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	off = c_dissect_pg_hitset_history(tree, hf_pg_hitset_history, tvb, off, data);
+
+	shard_id = tvb_get_gint8(tvb, off);
+	off += 1;
+	proto_item_append_text(ti, ", shard_id: %"G_GINT32_MODIFIER"d", (gint)shard_id);
+
+	off = c_dissect_hobject(tree, hf_pginfo_lastbackfill, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pginfo_lastbackfillbitwise, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	off += 1;
+
+	if (enc.version >= 32)
+	{
+		proto_tree_add_item(tree, hf_pginfo_lastintervalstarted, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an osd_reqid_t. */
+static
+guint c_dissect_osd_reqid(proto_tree *root, gint hf,
+			  tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+	c_entityname name;
+
+	/* osd_reqid_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_osd_reqid);
+
+	off = c_dissect_encoded(tree, &enc, 2, 2, tvb, off, data);
+
+	off = c_dissect_entityname(tree, hf_pglog_entry_osdreqid_name, &name, tvb, off, data);
+
+	proto_tree_add_item(root, hf_pglog_entry_osdreqid_tid, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(root, hf_pglog_entry_osdreqid_inc, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	proto_item_append_text(ti, ", From: %s", name.slug);
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an ObjectModDesc op. */
+static
+guint c_dissect_objectmoddesc_ops(proto_tree *root, gint hf, guint8 max_required_version,
+				  tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti, *ti2;
+	proto_tree *tree, *subtree;
+	c_encoded enc;
+	guint32 i;
+	c_moddesc_op_code code;
+	guint32 blend = off;
+
+	/* ObjectModDesc::visit from ceph:/src/osd/osd_types.cc */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_objectmoddesc_op);
+
+	blend += tvb_get_letohl(tvb, off) + 4;
+	off += 4;
+	while (off < blend)
+	{
+		off = c_dissect_encoded(tree, &enc, max_required_version, 2, tvb, off, data);
+
+		code = (c_moddesc_op_code)tvb_get_guint8(tvb, off);
+		proto_tree_add_item(tree, hf_moddesc_op_code, tvb, off, 1, ENC_LITTLE_ENDIAN);
+		off += 1;
+
+		switch (code)
+		{
+		case C_MODDESC_OP_CODE_APPEND:
+		{
+			proto_tree_add_item(tree, hf_moddesc_op_append_oldsize, tvb, off, 8, ENC_LITTLE_ENDIAN);
+			off += 8;
+			break;
+		}
+		case C_MODDESC_OP_CODE_SETATTRS:
+		{
+			c_str key;
+
+			i = tvb_get_letohl(tvb, off);
+			off += 4;
+			while (i--)
+			{
+				ti2 = proto_tree_add_item(tree, hf_moddesc_op_setattrs_attr, tvb, off, -1, ENC_NA);
+				subtree = proto_item_add_subtree(ti2, ett_objectmoddesc_op_attr);
+
+				key.size = tvb_get_letohl(tvb, off);
+				off += 4;
+				key.str = (char*)tvb_get_string_enc(wmem_packet_scope(),
+								    tvb, off, key.size, ENC_ASCII);
+				off += key.size;
+
+				// TODO:
+				off = c_dissect_data(subtree, hf, tvb, off);
+
+				proto_item_append_text(ti2, ", Key: %s", key.str);
+				proto_item_set_end(ti2, tvb, off);
+			}
+			break;
+		}
+		case C_MODDESC_OP_CODE_DELETE:
+		{
+			proto_tree_add_item(tree, hf_moddesc_op_delete_oldversion, tvb, off, 8, ENC_LITTLE_ENDIAN);
+			off += 8;
+			break;
+		}
+		case C_MODDESC_OP_CODE_CREATE:
+		{
+			break;
+		}
+		case C_MODDESC_OP_CODE_UPDATE_SNAPS:
+		{
+			i = tvb_get_letohl(tvb, off);
+			off += 4;
+			while (i--)
+			{
+				proto_tree_add_item(tree, hf_moddesc_op_updatesnaps_snap, tvb, off, 8, ENC_LITTLE_ENDIAN);
+				off += 8;
+			}
+			break;
+		}
+		case C_MODDESC_OP_CODE_TRY_DELETE:
+		{
+			proto_tree_add_item(tree, hf_moddesc_op_trydelete_oldversion, tvb, off, 8, ENC_LITTLE_ENDIAN);
+			off += 8;
+			break;
+		}
+		case C_MODDESC_OP_CODE_ROLLBACK_EXTENTS:
+		{
+			proto_item *ti3;
+			guint64 pair1, pair2;
+
+			ti2 = proto_tree_add_item(tree, hf_moddesc_op_rollbackextents, tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_objectmoddesc_op_rollbackextents);
+
+			proto_tree_add_item(subtree, hf_moddesc_op_rollbackextents_gen, tvb, off, 8, ENC_LITTLE_ENDIAN);
+			off += 8;
+
+			i = tvb_get_letohl(tvb, off);
+			off += 4;
+			while (i--)
+			{
+				ti3 = proto_tree_add_item(subtree, hf_moddesc_op_rollbackextents_extents, tvb, off, -1, ENC_NA);
+
+				pair1 = tvb_get_letoh64(tvb, off);
+				off += 8;
+				pair2 = tvb_get_letoh64(tvb, off);
+				off += 8;
+
+				proto_item_append_text(ti3, ", %"G_GINT64_MODIFIER"u, %"G_GINT64_MODIFIER"u",
+						       pair1, pair2);
+				proto_item_set_end(ti3, tvb, off);
+			}
+
+			proto_item_set_end(ti2, tvb, off);
+			break;
+		}
+		default:
+			expert_add_info(data->pinfo, ti, &ei_union_unknown);
+			off = blend; /* Skip everything. */
+			break;
+		}
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an ObjectModDesc. */
+static
+guint c_dissect_objectmoddesc(proto_tree *root, gint hf,
+			      tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+
+	/* ObjectModDesc from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_objectmoddesc);
+
+	off = c_dissect_encoded(tree, &enc, 1, 2, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_moddesc_canlocalrollback, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	off += 1;
+
+	proto_tree_add_item(tree, hf_moddesc_rollbackinfocompleted, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	off += 1;
+
+	off = c_dissect_objectmoddesc_ops(tree, hf_moddesc_ops, enc.version, tvb, off, data);
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an pg_log_entry_t. */
+static
+guint c_dissect_pglog_entry(proto_tree *root, gint hf,
+			    tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti, *ti2;
+	proto_tree *tree, *subtree;
+	c_encoded enc;
+	guint32 i, extras_reqids_num = 0;
+	c_pglog_op op;
+	const char *op_str;
+
+	/* pg_log_entry_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pglog_entry);
+
+	off = c_dissect_encoded(tree, &enc, 4, 12, tvb, off, data);
+
+	op = (c_pglog_op)tvb_get_letohl(tvb, off);
+	op_str = c_pglog_op_string(op);
+	proto_tree_add_item(tree, hf_pglog_entry_op, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	proto_item_append_text(ti, ", OP: %s", op_str);
+
+	if (enc.version < 2)
+	{
+		c_str oid;
+		guint64 snapid;
+
+		ti2 = proto_tree_add_item(tree, hf_pglog_entry_oldsoid, tvb, off, -1, ENC_NA);
+
+		oid.size = tvb_get_letohl(tvb, off);
+		off += 4;
+
+		oid.str = (char *)tvb_get_string_enc(wmem_packet_scope(),
+						     tvb, off, oid.size, ENC_ASCII);
+		off += oid.size;
+
+		snapid = tvb_get_letoh64(tvb, off);
+		off += 8;
+
+		proto_item_append_text(ti2, ", OID: %s, Snapshot ID: %"G_GINT64_MODIFIER"u",
+				       oid.str, snapid);
+		proto_item_set_end(ti2, tvb, off);
+	}
+	else
+	{
+		off = c_dissect_hobject(tree, hf_pglog_entry_soid, tvb, off, data);
+	}
+
+	off = c_dissect_eversion(tree, hf_pglog_entry_version, tvb, off, data);
+
+	if (enc.version >= 6 && op == C_PGLOG_OP_LOST_REVERT)
+	{
+		off = c_dissect_eversion(tree, hf_pglog_entry_revertingto, tvb, off, data);
+	}
+	else
+	{
+		off = c_dissect_eversion(tree, hf_pglog_entry_priorversion, tvb, off, data);
+	}
+
+	off = c_dissect_osd_reqid(tree, hf_pglog_entry_osdreqid, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pglog_entry_mtime, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	if (op == C_PGLOG_OP_LOST_REVERT)
+	{
+		if (enc.version >= 6)
+		{
+			off = c_dissect_eversion(tree, hf_pglog_entry_priorversion, tvb, off, data);
+		}
+	}
+
+	if (enc.version >= 7 || op == C_PGLOG_OP_CLONE)
+	{
+		off = c_dissect_data(tree, hf_pglog_entry_snaps, tvb, off);
+	}
+
+	if (enc.version >= 8)
+	{
+		proto_tree_add_item(tree, hf_pglog_entry_userversion, tvb, off, 8, ENC_LITTLE_ENDIAN);
+		off += 8;
+	}
+
+	if (enc.version >= 9)
+	{
+		off = c_dissect_objectmoddesc(tree, hf_pglog_entry_moddesc, tvb, off, data);
+	}
+
+	if (enc.version >= 10)
+	{
+		extras_reqids_num = i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			ti2 = proto_tree_add_item(tree, hf_pglog_entry_extrareqid, tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_pglog_entry_extrareqid);
+
+			off = c_dissect_osd_reqid(subtree, hf_pglog_entry_extrareqid_reqid, tvb, off, data);
+
+			proto_tree_add_item(subtree, hf_pglog_entry_extrareqid_version, tvb, off, 8, ENC_LITTLE_ENDIAN);
+			off += 8;
+
+			proto_item_set_end(ti2, tvb, off);
+		}
+	}
+
+	if (enc.version >= 11 && op == C_PGLOG_OP_ERROR)
+	{
+		proto_tree_add_item(tree, hf_pglog_entry_returncode, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (enc.version >= 12 && extras_reqids_num > 0)
+	{
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			ti2 = proto_tree_add_item(tree, hf_pglog_entry_extrareqid_returncodes, tvb, off, -1, ENC_NA);
+			subtree = proto_item_add_subtree(ti2, ett_pglog_entry_extrareqid_returncodes);
+
+			proto_tree_add_item(subtree, hf_pglog_entry_extrareqid_returncodes_index, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_tree_add_item(subtree, hf_pglog_entry_extrareqid_returncodes_returncode, tvb, off, 4, ENC_LITTLE_ENDIAN);
+			off += 4;
+
+			proto_item_set_end(ti2, tvb, off);
+		}
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an pg_log_dup_t. */
+static
+guint c_dissect_pglogdup(proto_tree *root, gint hf,
+			 tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+
+	/* pg_log_dup_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pg_log);
+
+	off = c_dissect_encoded(tree, &enc, 1, 1, tvb, off, data);
+
+	off = c_dissect_osd_reqid(tree, hf_pglog_dup_reqid, tvb, off, data);
+
+	off = c_dissect_eversion(tree, hf_pglog_dup_version, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pglog_dup_userversion, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	proto_tree_add_item(tree, hf_pglog_dup_returncode, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an pg_log_t. */
+static
+guint c_dissect_pglog(proto_tree *root, gint hf,
+		      tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+	guint32 i;
+
+	/* pg_log_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pg_log);
+
+	off = c_dissect_encoded(tree, &enc, 3, 7, tvb, off, data);
+
+	off = c_dissect_eversion(tree, hf_pglog_head, tvb, off, data);
+
+	off = c_dissect_eversion(tree, hf_pglog_tail, tvb, off, data);
+
+	if (enc.version < 2)
+	{
+		proto_tree_add_item(tree, hf_pglog_backlog, tvb, off, 1, ENC_LITTLE_ENDIAN);
+		off += 1;
+	}
+
+	i = tvb_get_letohl(tvb, off);
+	off += 4;
+	while (i--)
+	{
+		off = c_dissect_pglog_entry(tree, hf_pglog_entry, tvb, off, data);
+	}
+
+	if (enc.version >= 5)
+	{
+		off = c_dissect_eversion(tree, hf_pglog_canrollbackto, tvb, off, data);
+	}
+
+	if (enc.version >= 6)
+	{
+		off = c_dissect_eversion(tree, hf_pglog_rollbackinfotrimmedto, tvb, off, data);
+	}
+
+	if (enc.version >= 7)
+	{
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			off = c_dissect_pglogdup(tree, hf_pglog_dup, tvb, off, data);
+		}
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** PG Log (0x0053) */
+static
+guint c_dissect_msg_osd_pg_log(proto_tree *root,
+			       tvbuff_t *tvb,
+			       guint front_len, guint middle_len _U_, guint data_len _U_,
+			       c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	guint off = 0;
+	guint32 i;
+
+	/* ceph:/src/messages/MOSDPGLog.h */
+
+	c_set_type(data, "PG Log");
+
+	ti = proto_tree_add_item(root, hf_msg_osd_pglog, tvb, off, front_len, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_msg_osd_pglog);
+
+	proto_tree_add_item(tree, hf_msg_osd_pglog_epoch,
+			    tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	off = c_dissect_pginfo(tree, hf_pginfo, tvb, off, data);
+
+	off = c_dissect_pglog(tree, hf_pglog, tvb, off, data);
+
+	return off;
+}
+
 /** PG Stats (0x0057) */
 static
 guint c_dissect_msg_pgstats(proto_tree *root,
@@ -8051,6 +8979,7 @@ guint c_dissect_msg(proto_tree *tree,
 	C_HANDLE(C_MSG_MON_PROBE,		    c_dissect_msg_mon_probe)
 	C_HANDLE(C_MSG_OSD_PING,		    c_dissect_msg_osd_ping)
 	C_HANDLE(C_MSG_OSD_BOOT,		    c_dissect_msg_osd_boot)
+	C_HANDLE(C_MSG_OSD_PG_LOG,		    c_dissect_msg_osd_pg_log)
 	C_HANDLE(C_MSG_PGSTATS,			    c_dissect_msg_pgstats)
 	C_HANDLE(C_MSG_OSD_PG_CREATE,		    c_dissect_msg_osd_pg_create)
 	C_HANDLE(C_CEPH_MSG_CLIENT_CAPS,	    c_dissect_msg_client_caps)
@@ -9675,7 +10604,7 @@ proto_register_ceph(void)
 			FT_UINT32, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
-		{ &hf_pg_stat_snappurged, {
+		{ &hf_pg_stat_snapspurged, {
 			"Purged Snapshots", "ceph.pg_stat.snappurged",
 			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
@@ -11221,6 +12150,171 @@ proto_register_ceph(void)
 			FT_UINT64, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
+		{ &hf_hobject_key, {
+			"Key", "ceph.hobject.key",
+			FT_STRING, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_hobject_oid, {
+			"Object ID", "ceph.hobject.oid",
+			FT_STRING, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_hobject_snapid, {
+			"SnapShot ID", "ceph.hobject.snapid",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_hobject_hash, {
+			"Hash", "ceph.hobject.hash",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_hobject_max, {
+			"Max", "ceph.hobject.max",
+			FT_BOOLEAN, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_hobject_nspace, {
+			"Nspace", "ceph.hobject.nspace",
+			FT_STRING, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_hobject_pool, {
+			"Pool ID", "ceph.hobject.pool",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_history_epochcreated, {
+			"Epoch Created", "ceph.pg.history.epochcreated",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Epoch in which *pg* was created (pool or pg)", HFILL
+		} },
+		{ &hf_pg_history_lastepochstarted, {
+			"Last Epoch Started", "ceph.pg.history.lastepochstarted",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Lower bound on last epoch started (anywhere, not necessarily locally)", HFILL
+		} },
+		{ &hf_pg_history_lastepochclean, {
+			"Last Epoch Clean", "ceph.pg.history.lastepochclean",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"First epoch of last_epoch_clean interval", HFILL
+		} },
+		{ &hf_pg_history_lastepochsplit, {
+			"Last Epoch Split", "ceph.pg.history.lastepochsplit",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_history_sameintervalsince, {
+			"Same Interval Since", "ceph.pg.history.sameintervalsince",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Same acting AND up set since", HFILL
+		} },
+		{ &hf_pg_history_sameupsince, {
+			"Same Up Since", "ceph.pg.history.sameupsince",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Same acting set since", HFILL
+		} },
+		{ &hf_pg_history_sameprimarysince, {
+			"Same Primary Since", "ceph.pg.history.sameprimarysince",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Same primary at least back through this epoch", HFILL
+		} },
+		{ &hf_pg_history_lastscrub, {
+			"Last Scrub", "ceph.pg.history.lastscrub",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_history_lastscrubstamp, {
+			"Last Scrub Stamp", "ceph.pg.history.lastscrubstamp",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_history_lastdeepscrub, {
+			"Last Deep Scrub", "ceph.pg.history.lastdeepscrub",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_history_lastdeepscrubstamp, {
+			"Last Deep Scrub Stamp", "ceph.pg.history.lastdeepscrubstamp",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_history_lastcleanscrubstamp, {
+			"Last Clean Scrub Stamp", "ceph.pg.history.lastcleanscrubstamp",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_history_lastepochmarkedfull, {
+			"Last Epoch Marked Full", "ceph.pg.history.lastepochmarkedfull",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_history_lastintervalstarted, {
+			"Last Interval Started", "ceph.pg.history.lastintervalstarted",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"First epoch of last_epoch_started interval", HFILL
+		} },
+		{ &hf_pg_history_lastintervalclean, {
+			"Last Interval Clean", "ceph.pg.history.lastintervalclean",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"First epoch of last_epoch_clean interval", HFILL
+		} },
+		{ &hf_pg_history_epochpoolcreated, {
+			"Epoch Pool Created", "ceph.pg.history.epochpoolcreated",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			"Epoch in which *pool* was created", HFILL
+		} },
+		{ &hf_pg_hitset_info, {
+			"PG HitSet Info", "ceph.pg.hitset.info",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_hitset_info_begin, {
+			"Begin", "ceph.pg.hitset.info.begin",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_hitset_info_end, {
+			"End", "ceph.pg.hitset.info.end",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_hitset_info_version, {
+			"Version", "ceph.pg.hitset.info.version",
+			FT_NONE, BASE_NONE, NULL, 0,
+			"Version this HitSet object was written", HFILL
+		} },
+		{ &hf_pg_hitset_info_usinggmt, {
+			"Using Gmt", "ceph.pg.hitset.info.usinggmt",
+			FT_BOOLEAN, BASE_DEC, NULL, 0,
+			"Use gmt for creating the hit_set archive object name", HFILL
+		} },
+		{ &hf_pg_hitset_history, {
+			"PG HitSet History", "ceph.pg.hitset.history",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_hitset_history_lastupdate, {
+			"Current Last Update", "ceph.pg.hitset.history.lastupdate",
+			FT_NONE, BASE_NONE, NULL, 0,
+			"Last version inserted into current set", HFILL
+		} },
+		{ &hf_pg_hitset_history_dummystamp, {
+			"Dummy Stamp", "ceph.pg.hitset.history.dummystamp",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_hitset_history_dummyinfo, {
+			"Dummy Info", "ceph.pg.hitset.history.dummyinfo",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_hitset_history_info, {
+			"Info", "ceph.pg.hitset.history.info",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
 		{ &hf_msg_mon_map, {
 			"Mon Map Message", "ceph.msg.mon_map",
 			FT_NONE, BASE_NONE, NULL, 0,
@@ -12336,6 +13430,326 @@ proto_register_ceph(void)
 			FT_STRING, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
+		{ &hf_msg_osd_pglog, {
+			"Placement Group Log", "ceph.msg.osd.pglog",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_osd_pglog_epoch, {
+			"Epoch", "ceph.msg.osd.pglog.epoch",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo, {
+			"Info", "ceph.pginfo",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_spg, {
+			"PG Shard", "ceph.pginfo.spg",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_spg_pgid, {
+			"PG ID", "ceph.pginfo.spg.pgid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_lastupdate, {
+			"Last Update", "ceph.pginfo.lastupdate",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_lastcomplete, {
+			"Last Complete", "ceph.pginfo.lastcomplete",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_logtail, {
+			"Last Tail", "ceph.pginfo.logtail",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_oldlastbackfill, {
+			"Old Last Backfill", "ceph.pginfo.oldlastbackfill",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_stats, {
+			"Stats", "ceph.pginfo.stats",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_pghistory, {
+			"PG History", "ceph.pginfo.pghistory",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_snapspurged, {
+			"Purged Snapshots", "ceph.pginfo.snapspurged",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_snapspurged_from, {
+			"From", "ceph.pginfo.snapspurged.from",
+			FT_UINT64, BASE_HEX, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_snapspurged_to, {
+			"To", "ceph.pginfo.snapspurged.to",
+			FT_UINT64, BASE_HEX, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_lastepochstarted, {
+			"Last Epoch Started", "ceph.pginfo.lastepochstarted",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_lastuserversion, {
+			"Last User Version", "ceph.pginfo.lastuserversion",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_lastbackfill, {
+			"Last Backfill", "ceph.pginfo.lastbackfill",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_lastbackfillbitwise, {
+			"Last Backfill Bitwise", "ceph.pginfo.lastbackfillbitwise",
+			FT_BOOLEAN, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pginfo_lastintervalstarted, {
+			"Last Interval Started", "ceph.pginfo.lastintervalstarted",
+			FT_BOOLEAN, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog, {
+			"PG Log", "ceph.pglog",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_head, {
+			"Head", "ceph.pglog.head",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_tail, {
+			"Tail", "ceph.pglog.tail",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_backlog, {
+			"Backlog", "ceph.pglog.backlog",
+			FT_BOOLEAN, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry, {
+			"Entry", "ceph.pglog.entry",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_op, {
+			"OP", "ceph.pglog.entry.op",
+			FT_UINT32, BASE_DEC|BASE_EXT_STRING, &c_pglog_op_strings_ext, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_oldsoid, {
+			"Old Soid", "ceph.pglog.entry.oldsoid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_soid, {
+			"Soid", "ceph.pglog.entry.soid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_version, {
+			"Version", "ceph.pglog.entry.version",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_revertingto, {
+			"Reverting To", "ceph.pglog.entry.revertingto",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_priorversion, {
+			"Prior Version", "ceph.pglog.entry.priorversion",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_osdreqid, {
+			"OSD Req ID", "ceph.pglog.entry.osdreqid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_osdreqid_name, {
+			"Name", "ceph.pglog.entry.osdreqid.name",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_osdreqid_tid, {
+			"Transaction ID", "ceph.pglog.entry.osdreqid.tid",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_osdreqid_inc, {
+			"Incarnation", "ceph.pglog.entry.osdreqid.inc",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_mtime, {
+			"Mtime", "ceph.pglog.entry.mtime",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_snaps, {
+			"SnapShots", "ceph.pglog.entry.snaps",
+			FT_NONE, BASE_NONE, NULL, 0,
+			"Only for clone entries", HFILL
+		} },
+		{ &hf_pglog_entry_userversion, {
+			"User Version", "ceph.pglog.entry.userversion",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			"The user version for this entry", HFILL
+		} },
+		{ &hf_pglog_entry_moddesc, {
+			"Mod Desc", "ceph.pglog.entry.moddesc",
+			FT_NONE, BASE_NONE, NULL, 0,
+			"Describes state for a locally-rollbackable entry", HFILL
+		} },
+		{ &hf_moddesc_canlocalrollback, {
+			"Can Local Rollback", "ceph.moddsc.canlocalrollback",
+			FT_BOOLEAN, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_rollbackinfocompleted, {
+			"Rollback Info Completed", "ceph.moddsc.rollbackinfocompleted",
+			FT_BOOLEAN, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_ops, {
+			"Ops", "ceph.modesc.ops",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_op_code, {
+			"Code", "ceph.modesc.op.code",
+			FT_UINT8, BASE_DEC|BASE_EXT_STRING, &c_moddesc_op_code_strings_ext, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_op_append_oldsize, {
+			"Old Size", "ceph.modesc.op.append.oldsize",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_op_delete_oldversion, {
+			"Old Version", "ceph.moddesc.op.delete.oldversion",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_op_trydelete_oldversion, {
+			"Old Version", "ceph.moddesc.op.trydelete.oldversion",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_op_setattrs_attr, {
+			"Attr", "ceph.moddesc.op.setattrs.attr",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_op_updatesnaps_snap, {
+			"SnapShot ID", "ceph.moddesc.op.updatesnaps.snap",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_op_rollbackextents, {
+			"Rollback Extents", "ceph.mddesc.op.rollbackextents",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_op_rollbackextents_gen, {
+			"Gen", "ceph.mddesc.op.rollbackextents.gen",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_moddesc_op_rollbackextents_extents, {
+			"Extents", "ceph.moddesc.op.rollbackextents.extents",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_extrareqid, {
+			"Extra Req ID", "ceph.pglog.entry.extrareqid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_extrareqid_reqid, {
+			"Req ID", "ceph.pglog.entry.extrareqid.reqid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_extrareqid_version, {
+			"Version", "ceph.pglog.entry.extrareqid.version",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_returncode, {
+			"Return Code", "ceph.pglog.entry.returncode",
+			FT_INT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_extrareqid_returncodes, {
+			"Extra Req ID Return Codes", "ceph.pglog.entry.extrareqid.returncodes",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_extrareqid_returncodes_index, {
+			"Index", "ceph.pglog.entry.extrareqid.returncodes.index",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_entry_extrareqid_returncodes_returncode, {
+			"Index", "ceph.pglog.entry.extrareqid.returncodes.returncode",
+			FT_INT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_canrollbackto, {
+			"Can Rollback To", "ceph.pglog.canrollbackto",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_rollbackinfotrimmedto, {
+			"Rollback Info Trimmed To", "ceph.pglog.rollbackinfotrimmedto",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_dup, {
+			"PG Log Dup", "ceph.pglog.dup",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_dup_reqid, {
+			"Req ID", "ceph.pglog.dup.reqid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_dup_version, {
+			"Version", "ceph.pglog.dup.version",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_dup_userversion, {
+			"User Version", "ceph.pglog.dup.userversion",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_dup_returncode, {
+			"Return Code", "ceph.pglog.dup.returncode",
+			FT_INT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
 		{ &hf_msg_pgstats, {
 			"Placement Group Stats", "ceph.msg.pgstats",
 			FT_NONE, BASE_NONE, NULL, 0,
@@ -12702,6 +14116,23 @@ proto_register_ceph(void)
 		&ett_msg_mon_probe,
 		&ett_msg_osd_ping,
 		&ett_msg_osd_boot,
+		&ett_msg_osd_pglog,
+		&ett_pg_info,
+		&ett_pg_spg,
+		&ett_hobject,
+		&ett_pghistory,
+		&ett_pglog_snapspurged,
+		&ett_pg_hitset_info,
+		&ett_pg_hitset_history,
+		&ett_pg_log,
+		&ett_osd_reqid,
+		&ett_pglog_entry,
+		&ett_objectmoddesc,
+		&ett_objectmoddesc_op,
+		&ett_objectmoddesc_op_attr,
+		&ett_objectmoddesc_op_rollbackextents,
+		&ett_pglog_entry_extrareqid,
+		&ett_pglog_entry_extrareqid_returncodes,
 		&ett_msg_pgstats,
 		&ett_msg_pgstats_pgstat,
 		&ett_msg_pgstats_poolstat,
