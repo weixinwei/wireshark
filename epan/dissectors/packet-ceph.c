@@ -7457,6 +7457,57 @@ guint c_dissect_msg_osd_boot(proto_tree *root,
 	return off;
 }
 
+/** OSD Failure (0x0048) */
+static
+guint c_dissect_msg_osd_failure(proto_tree *root,
+				tvbuff_t *tvb,
+				guint front_len, guint middle_len _U_, guint data_len _U_,
+				c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MOSDFailure.h */
+
+	c_set_type(data, "OSD Failure");
+
+	return front_len;
+}
+
+/** PG Notify (0x0050) */
+static
+guint c_dissect_msg_osd_pg_notify(proto_tree *root,
+				  tvbuff_t *tvb,
+				  guint front_len, guint middle_len _U_, guint data_len _U_,
+				  c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MOSDPGNotify.h */
+
+	c_set_type(data, "PG Notify");
+
+	return front_len;
+}
+
+/** PG Query (0x0051) */
+static
+guint c_dissect_msg_osd_pg_query(proto_tree *root,
+				 tvbuff_t *tvb,
+				 guint front_len, guint middle_len _U_, guint data_len _U_,
+				 c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MOSDPGQuery.h */
+
+	c_set_type(data, "PG Query");
+
+	return front_len;
+}
+
 /** Dissect an spg_t. */
 static
 guint c_dissect_spg(proto_tree *root, gint hf,
@@ -8243,6 +8294,23 @@ guint c_dissect_msg_osd_pg_log(proto_tree *root,
 	return off;
 }
 
+/** PG Info (0x0055) */
+static
+guint c_dissect_msg_osd_pg_info(proto_tree *root,
+				tvbuff_t *tvb,
+				guint front_len, guint middle_len _U_, guint data_len _U_,
+				c_pkt_data *data)
+{
+	(void)root;
+	(void)tvb;
+
+	/* ceph:/src/messages/MOSDPGInfo.h */
+
+	c_set_type(data, "PG Info");
+
+	return front_len;
+}
+
 /** PG Stats (0x0057) */
 static
 guint c_dissect_msg_pgstats(proto_tree *root,
@@ -8979,7 +9047,11 @@ guint c_dissect_msg(proto_tree *tree,
 	C_HANDLE(C_MSG_MON_PROBE,		    c_dissect_msg_mon_probe)
 	C_HANDLE(C_MSG_OSD_PING,		    c_dissect_msg_osd_ping)
 	C_HANDLE(C_MSG_OSD_BOOT,		    c_dissect_msg_osd_boot)
+	C_HANDLE(C_MSG_OSD_FAILURE,		    c_dissect_msg_osd_failure)
+	C_HANDLE(C_MSG_OSD_PG_NOTIFY,		    c_dissect_msg_osd_pg_notify)
+	C_HANDLE(C_MSG_OSD_PG_QUERY,		    c_dissect_msg_osd_pg_query)
 	C_HANDLE(C_MSG_OSD_PG_LOG,		    c_dissect_msg_osd_pg_log)
+	C_HANDLE(C_MSG_OSD_PG_INFO,		    c_dissect_msg_osd_pg_info)
 	C_HANDLE(C_MSG_PGSTATS,			    c_dissect_msg_pgstats)
 	C_HANDLE(C_MSG_OSD_PG_CREATE,		    c_dissect_msg_osd_pg_create)
 	C_HANDLE(C_CEPH_MSG_CLIENT_CAPS,	    c_dissect_msg_client_caps)
