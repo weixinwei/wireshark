@@ -856,6 +856,26 @@ static int hf_pglog_entry_mtime			 = -1;
 static int hf_pglog_entry_snaps			 = -1;
 static int hf_pglog_entry_userversion		 = -1;
 static int hf_pglog_entry_moddesc		 = -1;
+static int hf_pgmissing				 = -1;
+static int hf_pgmissing_oid			 = -1;
+static int hf_pgmissing_item			 = -1;
+static int hf_pgmissing_item_eversion		 = -1;
+static int hf_pgmissing_item_need		 = -1;
+static int hf_pgmissing_item_have		 = -1;
+static int hf_pgmissing_item_flags		 = -1;
+static int hf_pgmissing_mayincludedeletes	 = -1;
+static int hf_pglog_queryepoch			 = -1;
+static int hf_pg_pastintervals			 = -1;
+static int hf_pg_pi_picompactrep		 = -1;
+static int hf_pg_pi_picompactrep_first		 = -1;
+static int hf_pg_pi_picompactrep_last		 = -1;
+static int hf_pg_pi_picompactrep_allparticipants = -1;
+static int hf_pi_compactinterval		 = -1;
+static int hf_pi_compactinterval_first		 = -1;
+static int hf_pi_compactinterval_last		 = -1;
+static int hf_pi_compactinterval_acting		 = -1;
+static int hf_pglog_to				 = -1;
+static int hf_pglog_from			 = -1;
 static int hf_moddesc_canlocalrollback		 = -1;
 static int hf_moddesc_rollbackinfocompleted	 = -1;
 static int hf_moddesc_ops			 = -1;
@@ -1068,6 +1088,11 @@ static gint ett_objectmoddesc_op_attr	   = -1;
 static gint ett_objectmoddesc_op_rollbackextents=-1;
 static gint ett_pglog_entry_extrareqid	   = -1;
 static gint ett_pglog_entry_extrareqid_returncodes=-1;
+static gint ett_pgmissing		   = -1;
+static gint ett_pgmissing_item		   = -1;
+static gint ett_pg_pastintervals	   = -1;
+static gint ett_pg_pi_picompactrep	   = -1;
+static gint ett_pi_compactinterval	   = -1;
 static gint ett_msg_pgstats		   = -1;
 static gint ett_msg_pgstats_pgstat	   = -1;
 static gint ett_msg_pgstats_poolstat	   = -1;
@@ -1718,6 +1743,13 @@ C_MAKE_STRINGS_EXT(c_pglog_op, 2)
 
 C_MAKE_STRINGS_EXT(c_moddesc_op_code, 2)
 
+/** PG Missing Flags. */
+#define c_pg_missing_flags_strings_VALUE_STRING_LIST(V) \
+	V(C_PG_MISSING_FLAGS_NONE,	0, "NONE") \
+	V(C_PG_MISSING_FLAGS_DELETE,	1, "DELETE")
+
+C_MAKE_STRINGS_EXT(c_pg_missing_flags, 1)
+
 #define C_MON_SUB_FLAG_ONETIME  0x01
 
 typedef enum _c_state {
@@ -1769,6 +1801,11 @@ c_node *c_node_copy(c_node *src, c_node *dst)
 
 	return dst;
 }
+
+typedef struct _c_eversion {
+	guint64 ver;
+	guint32 epoch;
+} c_eversion;
 
 typedef struct _c_conv_data {
 	c_node client; /* The node that initiated this connection. */
@@ -2821,15 +2858,17 @@ guint c_dissect_kv(proto_tree *root, int hf, int hf_k, int hf_v,
 
 #define C_SIZE_EVERSION  12
 
+#define c_dissect_eversion(root, hf, tvb, off, data) \
+	c_dissect_eversion_out(root, hf, NULL, tvb, off, data)
+
 /** Dissect a eversion_t */
 static
-guint c_dissect_eversion(proto_tree *root, gint hf,
-			 tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+guint c_dissect_eversion_out(proto_tree *root, gint hf, c_eversion *out,
+			     tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint64 ver;
-	guint32 epoch;
+	c_eversion eversion;
 
 	/** eversion_t from ceph:/src/osd/osd_types.h */
 
@@ -2837,21 +2876,23 @@ guint c_dissect_eversion(proto_tree *root, gint hf,
 	tree = proto_item_add_subtree(ti, ett_eversion);
 
 	/*** version_t ***/
-	ver = tvb_get_letoh64(tvb, off);
+	eversion.ver = tvb_get_letoh64(tvb, off);
 	proto_tree_add_item(tree, hf_version, tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
 
 	/*** epoch_t ***/
-	epoch = tvb_get_letohl(tvb, off);
+	eversion.epoch = tvb_get_letohl(tvb, off);
 	proto_tree_add_item(tree, hf_epoch, tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
 
 	proto_item_append_text(ti,
 			       ", Version: %"G_GINT64_MODIFIER"d"
 			       ", Epoch: %"G_GINT32_MODIFIER"d",
-			       ver, epoch);
+			       eversion.ver, eversion.epoch);
 
 	proto_item_set_end(ti, tvb, off);
+
+	if (out) *out = eversion;
 	return off;
 }
 
@@ -5209,7 +5250,7 @@ guint c_dissect_statcollection(proto_tree *root, int key,
 
 /** Dissect an pg_shard_t. */
 static
-guint c_dissect_pg_shard(proto_tree *root, tvbuff_t *tvb, guint off)
+guint c_dissect_pg_shard(proto_tree *root, gint hf, tvbuff_t *tvb, guint off)
 {
 	proto_item *ti;
 	guint32 osd;
@@ -5217,7 +5258,7 @@ guint c_dissect_pg_shard(proto_tree *root, tvbuff_t *tvb, guint off)
 
 	/* pg_shard_t from ceph:/src/osd/osd_types.h */
 
-	ti = proto_tree_add_item(root, hf_pg_shard, tvb, off, -1, ENC_NA);
+	ti = proto_tree_add_item(root, hf == -1 ? hf_pg_shard : hf, tvb, off, -1, ENC_NA);
 
 	osd = tvb_get_letohl(tvb, off);
 	off += 4;
@@ -5519,7 +5560,7 @@ guint c_dissect_pg_stats(proto_tree *root, int hf,
 			off += 4;
 			while (i--)
 			{
-				off = c_dissect_pg_shard(subtree, tvb, off);
+				off = c_dissect_pg_shard(subtree, -1, tvb, off);
 			}
 			proto_item_set_end(ti2, tvb, off);
 
@@ -5536,7 +5577,7 @@ guint c_dissect_pg_stats(proto_tree *root, int hf,
 				off += 4;
 				while (j--)
 				{
-					off = c_dissect_pg_shard(ti2, tvb, off);
+					off = c_dissect_pg_shard(ti2, -1, tvb, off);
 				}
 
 				proto_tree_add_item(ti2, hf_pg_objects,
@@ -7890,6 +7931,7 @@ guint c_dissect_objectmoddesc_ops(proto_tree *root, gint hf, guint8 max_required
 		off = c_dissect_encoded(tree, &enc, max_required_version, 2, tvb, off, data);
 
 		code = (c_moddesc_op_code)tvb_get_guint8(tvb, off);
+		c_moddesc_op_code_string(code);
 		proto_tree_add_item(tree, hf_moddesc_op_code, tvb, off, 1, ENC_LITTLE_ENDIAN);
 		off += 1;
 
@@ -8264,6 +8306,197 @@ guint c_dissect_pglog(proto_tree *root, gint hf,
 	return off;
 }
 
+/** Dissect an pg_missing_item. */
+static
+guint c_dissect_pg_missing_item(proto_tree *root, gint hf,
+				tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_eversion eversion;
+	guint8 flags;
+
+	/* pg_missing_item from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pgmissing_item);
+
+	off = c_dissect_eversion_out(tree, hf_pgmissing_item_eversion, &eversion, tvb, off, data);
+
+	if (eversion.ver != 0 || eversion.epoch != 0)
+	{
+		off = c_dissect_eversion(tree, hf_pgmissing_item_have, tvb, off, data);
+	}
+	else
+	{
+		off = c_dissect_eversion(tree, hf_pgmissing_item_need, tvb, off, data);
+
+		off = c_dissect_eversion(tree, hf_pgmissing_item_have, tvb, off, data);
+
+		flags = (c_pg_missing_flags)tvb_get_guint8(tvb, off);
+		proto_tree_add_item(tree, hf_pgmissing_item_flags, tvb, off, 1, ENC_LITTLE_ENDIAN);
+		c_pg_missing_flags_string(flags);
+		off += 1;
+	}
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an pg_missing_t. */
+static
+guint c_dissect_pgmissing(proto_tree *root, gint hf,
+			  tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+	guint32 i;
+
+	/* pg_missing_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pgmissing);
+
+	off = c_dissect_encoded(tree, &enc, 2, 4, tvb, off, data);
+
+	i = tvb_get_letohl(tvb, off);
+	off += 4;
+	while (i--)
+	{
+		off = c_dissect_hobject(tree, hf_pgmissing_oid, tvb, off, data);
+
+		off = c_dissect_pg_missing_item(tree, hf_pgmissing_item, tvb, off, data);
+	}
+
+	if (enc.version >= 4)
+	{
+		proto_tree_add_item(tree, hf_pgmissing_mayincludedeletes, tvb, off, 1, ENC_LITTLE_ENDIAN);
+		off += 1;
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an compact_interval_t. */
+static
+guint c_dissect_pi_compactinterval(proto_tree *root, gint hf,
+				   tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	c_encoded enc;
+	guint32 i;
+
+	/* compact_interval_t from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pi_compactinterval);
+
+	off = c_dissect_encoded(tree, &enc, 1, 1, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pi_compactinterval_first, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	proto_tree_add_item(tree, hf_pi_compactinterval_last, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	i = tvb_get_letohl(tvb, off);
+	off += 4;
+	while (i--)
+	{
+		off = c_dissect_pg_shard(tree, hf_pi_compactinterval_acting, tvb, off);
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
+/** Dissect an PastIntervals. */
+static
+guint c_dissect_pg_pastintervals(proto_tree *root, gint hf,
+				 tvbuff_t *tvb, guint off, c_pkt_data *data)
+{
+	proto_item *ti, *ti2;
+	proto_tree *tree, *subtree;
+	c_encoded enc, enc1;
+	guint8 type;
+	guint32 i;
+
+	/* PastIntervals from ceph:/src/osd/osd_types.h */
+
+	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_pg_pastintervals);
+
+	off = c_dissect_encoded(tree, &enc, 1, 1, tvb, off, data);
+
+	type = tvb_get_guint8(tvb, off);
+	off += 1;
+
+	switch (type)
+	{
+	case 0:
+	{
+		break;
+	}
+	case 1:
+	{
+		DISSECTOR_ASSERT_HINT(0, "pi_simple_rep support removed post-luminous");
+		break;
+	}
+	case 2:
+	{
+		ti2   = proto_tree_add_item(tree, hf_pg_pi_picompactrep, tvb, off, -1, ENC_NA);
+		subtree = proto_item_add_subtree(ti2, ett_pg_pi_picompactrep);
+
+		off = c_dissect_encoded(subtree, &enc1, 1, 1, tvb, off, data);
+
+		proto_tree_add_item(subtree, hf_pg_pi_picompactrep_first, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		proto_tree_add_item(subtree, hf_pg_pi_picompactrep_last, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			off = c_dissect_pg_shard(subtree, hf_pg_pi_picompactrep_allparticipants, tvb, off);
+		}
+
+		i = tvb_get_letohl(tvb, off);
+		off += 4;
+		while (i--)
+		{
+			off = c_dissect_pi_compactinterval(subtree, hf_pi_compactinterval, tvb, off, data);
+		}
+
+		c_warn_size(subtree, tvb, off, enc1.end, data);
+		off = enc.end;
+
+		proto_item_set_end(ti2, tvb, off);
+		break;
+	}
+	default:
+		expert_add_info(data->pinfo, ti, &ei_union_unknown);
+		off = enc.end; /* Skip everything. */
+		break;
+	}
+
+	c_warn_size(tree, tvb, off, enc.end, data);
+	off = enc.end;
+
+	proto_item_set_end(ti, tvb, off);
+	return off;
+}
+
 /** PG Log (0x0053) */
 static
 guint c_dissect_msg_osd_pg_log(proto_tree *root,
@@ -8274,7 +8507,6 @@ guint c_dissect_msg_osd_pg_log(proto_tree *root,
 	proto_item *ti;
 	proto_tree *tree;
 	guint off = 0;
-	guint32 i;
 
 	/* ceph:/src/messages/MOSDPGLog.h */
 
@@ -8290,6 +8522,19 @@ guint c_dissect_msg_osd_pg_log(proto_tree *root,
 	off = c_dissect_pginfo(tree, hf_pginfo, tvb, off, data);
 
 	off = c_dissect_pglog(tree, hf_pglog, tvb, off, data);
+
+	off = c_dissect_pgmissing(tree, hf_pgmissing, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pglog_queryepoch, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	off = c_dissect_pg_pastintervals(tree, hf_pg_pastintervals, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pglog_to, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	off += 1;
+
+	proto_tree_add_item(tree, hf_pglog_from, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	off += 1;
 
 	return off;
 }
@@ -13503,7 +13748,7 @@ proto_register_ceph(void)
 			NULL, HFILL
 		} },
 		{ &hf_msg_osd_pglog, {
-			"Placement Group Log", "ceph.msg.osd.pglog",
+			"PG Log", "ceph.msg.osd.pglog",
 			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
@@ -13513,7 +13758,7 @@ proto_register_ceph(void)
 			NULL, HFILL
 		} },
 		{ &hf_pginfo, {
-			"Info", "ceph.pginfo",
+			"PG Info", "ceph.pginfo",
 			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
@@ -13691,6 +13936,106 @@ proto_register_ceph(void)
 			"Mod Desc", "ceph.pglog.entry.moddesc",
 			FT_NONE, BASE_NONE, NULL, 0,
 			"Describes state for a locally-rollbackable entry", HFILL
+		} },
+		{ &hf_pgmissing, {
+			"PG Missing", "ceph.pgmissing",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgmissing_oid, {
+			"Object", "ceph.pgmissing.oid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgmissing_item, {
+			"Item", "ceph.pgmissing.item",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgmissing_item_eversion, {
+			"Eversion", "ceph.pgmissing.item.eversion",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgmissing_item_need, {
+			"Need", "ceph.pgmissing.item.need",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgmissing_item_have, {
+			"Have", "ceph.pgmissing.item.have",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgmissing_item_flags, {
+			"Flags", "ceph.pgmissing.item.flags",
+			FT_UINT8, BASE_DEC|BASE_EXT_STRING, &c_pg_missing_flags_strings_ext, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pgmissing_mayincludedeletes, {
+			"May Include Deletes", "ceph.pgmissing.mayincludedeletes",
+			FT_BOOLEAN, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_queryepoch, {
+			"Query Epoch", "ceph.pglog.queryepoch",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_pastintervals, {
+			"PastIntervals", "ceph.pg.pastintervals",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_pi_picompactrep, {
+			"Compact Rep", "ceph.pg.pi.picompactrep",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_pi_picompactrep_first, {
+			"First", "ceph.pg.pi.picompactrep.first",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_pi_picompactrep_last, {
+			"Last", "ceph.pg.pi.picompactrep.last",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_pi_picompactrep_allparticipants, {
+			"All Participants", "ceph.pg.pi.picompactrep.allparticipants",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pi_compactinterval, {
+			"Compact Interval", "ceph.pi.compactinterval",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pi_compactinterval_first, {
+			"First", "ceph.pi.compactinterval.first",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pi_compactinterval_last, {
+			"Last", "ceph.pi.compactinterval.last",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pi_compactinterval_acting, {
+			"Acting", "ceph.pi.compactinterval.acting",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_to, {
+			"To Shard", "ceph.pglog.to",
+			FT_UINT8, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pglog_from, {
+			"From Shard", "ceph.pglog.from",
+			FT_UINT8, BASE_DEC, NULL, 0,
+			NULL, HFILL
 		} },
 		{ &hf_moddesc_canlocalrollback, {
 			"Can Local Rollback", "ceph.moddsc.canlocalrollback",
@@ -14205,6 +14550,11 @@ proto_register_ceph(void)
 		&ett_objectmoddesc_op_rollbackextents,
 		&ett_pglog_entry_extrareqid,
 		&ett_pglog_entry_extrareqid_returncodes,
+		&ett_pgmissing,
+		&ett_pgmissing_item,
+		&ett_pg_pastintervals,
+		&ett_pg_pi_picompactrep,
+		&ett_pi_compactinterval,
 		&ett_msg_pgstats,
 		&ett_msg_pgstats_pgstat,
 		&ett_msg_pgstats_poolstat,
