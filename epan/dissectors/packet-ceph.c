@@ -902,7 +902,6 @@ static int hf_pglog_dup_reqid			 = -1;
 static int hf_pglog_dup_version			 = -1;
 static int hf_pglog_dup_userversion		 = -1;
 static int hf_pglog_dup_returncode		 = -1;
-
 static int hf_msg_pgstats			 = -1;
 static int hf_msg_pgstats_fsid			 = -1;
 static int hf_msg_pgstats_pgstat		 = -1;
@@ -916,6 +915,22 @@ static int hf_msg_osd_pg_create_epoch		 = -1;
 static int hf_msg_osd_pg_create_mkpg		 = -1;
 static int hf_msg_osd_pg_create_mkpg_pg		 = -1;
 static int hf_msg_osd_pg_create_mkpg_create	 = -1;
+static int hf_msg_osd_pg_updatelogmissing	 = -1;
+static int hf_pg_updatelogmissing_mapepoch	 = -1;
+static int hf_pg_updatelogmissing_pgid		 = -1;
+static int hf_pg_updatelogmissing_from		 = -1;
+static int hf_pg_updatelogmissing_tid		 = -1;
+static int hf_pg_updatelogmissing_entries	 = -1;
+static int hf_pg_updatelogmissing_minepoch	 = -1;
+static int hf_pg_updatelogmissing_pgtrimto	 = -1;
+static int hf_pg_updatelogmissing_pgrollforwardto= -1;
+static int hf_msg_osd_pg_updatelogmissingreply	 = -1;
+static int hf_pg_updatelogmissingreply_mapepoch	 = -1;
+static int hf_pg_updatelogmissingreply_pgid	 = -1;
+static int hf_pg_updatelogmissingreply_from	 = -1;
+static int hf_pg_updatelogmissingreply_tid	 = -1;
+static int hf_pg_updatelogmissingreply_minepoch	 = -1;
+static int hf_pg_updatelogmissingreply_lastcompleteondisk= -1;
 static int hf_msg_client_caps			 = -1;
 static int hf_msg_client_caps_op		 = -1;
 static int hf_msg_client_caps_inode		 = -1;
@@ -1097,6 +1112,8 @@ static gint ett_msg_pgstats		   = -1;
 static gint ett_msg_pgstats_pgstat	   = -1;
 static gint ett_msg_pgstats_poolstat	   = -1;
 static gint ett_msg_osd_pg_create	   = -1;
+static gint ett_mgs_osd_pg_updatelogmissing= -1;
+static gint ett_mgs_osd_pg_updatelogmissingreply= -1;
 static gint ett_msg_osd_pg_create_mkpg	   = -1;
 static gint ett_msg_client_caps		   = -1;
 static gint ett_msg_client_caprel	   = -1;
@@ -1356,6 +1373,8 @@ static value_string_ext c_tag_v2_strings_ext = VALUE_STRING_EXT_INIT(c_tag_v2_st
 	V(C_MSG_OSD_EC_WRITE_REPLY,	     0x006D, "C_MSG_OSD_EC_WRITE_REPLY")	  \
 	V(C_MSG_OSD_EC_READ,		     0x006E, "C_MSG_OSD_EC_READ")		  \
 	V(C_MSG_OSD_EC_READ_REPLY,	     0x006F, "C_MSG_OSD_EC_READ_REPLY")		  \
+	V(C_MSG_OSD_PG_UPDATE_LOG_MISSING,   0x0072, "C_MSG_OSD_PG_UPDATE_LOG_MISSING")   \
+	V(C_MSG_OSD_PG_UPDATE_LOG_MISSING_REPLY,0x0073, "C_MSG_OSD_PG_UPDATE_LOG_MISSING_REPLY") \
 	V(C_CEPH_MSG_PRIO_DEFAULT,	     0x007F, "C_CEPH_MSG_PRIO_DEFAULT")		  \
 	V(C_MSG_OSD_RECOVERY_RESERVE,	     0x0096, "C_MSG_OSD_RECOVERY_RESERVE")	  \
 	V(C_CEPH_MSG_PRIO_HIGH,		     0x00C4, "C_CEPH_MSG_PRIO_HIGH")		  \
@@ -7892,10 +7911,10 @@ guint c_dissect_osd_reqid(proto_tree *root, gint hf,
 
 	off = c_dissect_entityname(tree, hf_pglog_entry_osdreqid_name, &name, tvb, off, data);
 
-	proto_tree_add_item(root, hf_pglog_entry_osdreqid_tid, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	proto_tree_add_item(tree, hf_pglog_entry_osdreqid_tid, tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
 
-	proto_tree_add_item(root, hf_pglog_entry_osdreqid_inc, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	proto_tree_add_item(tree, hf_pglog_entry_osdreqid_inc, tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
 
 	proto_item_append_text(ti, ", From: %s", name.slug);
@@ -8031,9 +8050,6 @@ guint c_dissect_objectmoddesc_ops(proto_tree *root, gint hf, guint8 max_required
 			break;
 		}
 	}
-
-	c_warn_size(tree, tvb, off, enc.end, data);
-	off = enc.end;
 
 	proto_item_set_end(ti, tvb, off);
 	return off;
@@ -8676,6 +8692,97 @@ guint c_dissect_msg_osd_pg_create(proto_tree *root,
 	return off;
 }
 
+/** OSD PG Update Log Missing (0x0072) */
+static
+guint c_dissect_msg_osd_pg_update_log_missing(proto_tree *root,
+					      tvbuff_t *tvb,
+					      guint front_len, guint middle_len _U_, guint data_len _U_,
+					      c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	guint off = 0;
+	guint32 i;
+
+	/* ceph:/src/messages/MOSDPGUpdateLogMissing.h */
+
+	c_set_type(data, "OSD PG Update Log Missing");
+
+	ti = proto_tree_add_item(root, hf_msg_osd_pg_updatelogmissing, tvb, off, front_len, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_mgs_osd_pg_updatelogmissing);
+
+	proto_tree_add_item(tree, hf_pg_updatelogmissing_mapepoch, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	off = c_dissect_spg(tree, hf_pg_updatelogmissing_pgid, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pg_updatelogmissing_from, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	off += 1;
+
+	proto_tree_add_item(tree, hf_pg_updatelogmissing_tid, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	i = tvb_get_letohl(tvb, off);
+	off += 4;
+	while (i--)
+	{
+		off = c_dissect_pglog_entry(tree, hf_pg_updatelogmissing_entries, tvb, off, data);
+	}
+
+	proto_tree_add_item(tree, hf_pg_updatelogmissing_minepoch, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	off = c_dissect_eversion(tree, hf_pg_updatelogmissing_pgtrimto, tvb, off, data);
+
+	off = c_dissect_eversion(tree, hf_pg_updatelogmissing_pgrollforwardto, tvb, off, data);
+
+	return off;
+}
+
+/** OSD PG Update Log Missing Reply (0x0073) */
+static
+guint c_dissect_msg_osd_pg_update_log_missing_reply(proto_tree *root,
+						    tvbuff_t *tvb,
+						    guint front_len, guint middle_len _U_, guint data_len _U_,
+						    c_pkt_data *data)
+{
+	proto_item *ti;
+	proto_tree *tree;
+	guint off = 0;
+	guint32 i;
+
+	/* ceph:/src/messages/MOSDPGUpdateLogMissingReply.h */
+
+	c_set_type(data, "OSD PG Update Log Missing Reply");
+
+	ti = proto_tree_add_item(root, hf_msg_osd_pg_updatelogmissingreply, tvb, off, front_len, ENC_NA);
+	tree = proto_item_add_subtree(ti, ett_mgs_osd_pg_updatelogmissingreply);
+
+	proto_tree_add_item(tree, hf_pg_updatelogmissingreply_mapepoch, tvb, off, 4, ENC_LITTLE_ENDIAN);
+	off += 4;
+
+	off = c_dissect_spg(tree, hf_pg_updatelogmissingreply_pgid, tvb, off, data);
+
+	proto_tree_add_item(tree, hf_pg_updatelogmissingreply_from, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	off += 1;
+
+	proto_tree_add_item(tree, hf_pg_updatelogmissingreply_tid, tvb, off, 8, ENC_LITTLE_ENDIAN);
+	off += 8;
+
+	if (data->header.ver >= 2)
+	{
+		proto_tree_add_item(tree, hf_pg_updatelogmissingreply_minepoch, tvb, off, 4, ENC_LITTLE_ENDIAN);
+		off += 4;
+	}
+
+	if (data->header.ver >= 3)
+	{
+		off = c_dissect_eversion(tree, hf_pg_updatelogmissingreply_lastcompleteondisk, tvb, off, data);
+	}
+
+	return off;
+}
+
 /** Client Caps 0x0310 */
 static
 guint c_dissect_msg_client_caps(proto_tree *root,
@@ -9299,6 +9406,8 @@ guint c_dissect_msg(proto_tree *tree,
 	C_HANDLE(C_MSG_OSD_PG_INFO,		    c_dissect_msg_osd_pg_info)
 	C_HANDLE(C_MSG_PGSTATS,			    c_dissect_msg_pgstats)
 	C_HANDLE(C_MSG_OSD_PG_CREATE,		    c_dissect_msg_osd_pg_create)
+	C_HANDLE(C_MSG_OSD_PG_UPDATE_LOG_MISSING,   c_dissect_msg_osd_pg_update_log_missing)
+	C_HANDLE(C_MSG_OSD_PG_UPDATE_LOG_MISSING_REPLY,c_dissect_msg_osd_pg_update_log_missing_reply)
 	C_HANDLE(C_CEPH_MSG_CLIENT_CAPS,	    c_dissect_msg_client_caps)
 	C_HANDLE(C_CEPH_MSG_CLIENT_CAPRELEASE,	    c_dissect_msg_client_caprel)
 	C_HANDLE(C_MSG_TIMECHECK,		    c_dissect_msg_timecheck)
@@ -14232,6 +14341,86 @@ proto_register_ceph(void)
 			FT_NONE, BASE_NONE, NULL, 0,
 			NULL, HFILL
 		} },
+		{ &hf_msg_osd_pg_updatelogmissing, {
+			"PG Update Log Missing", "ceph.msg.osd.pg.updatelogmissing",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissing_mapepoch, {
+			"Map Epoch", "ceph.msg.osd.pg.updatelogmissing.mapepoch",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissing_pgid, {
+			"PG ID", "ceph.msg.osd.pg.updatelogmissing.pgid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissing_from, {
+			"From Shard", "ceph.msg.osd.pg.updatelogmissing.from",
+			FT_UINT8, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissing_tid, {
+			"TID", "ceph.msg.osd.pg.updatelogmissing.tid",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissing_entries, {
+			"Entries", "ceph.msg.osd.pg.updatelogmissing.entries",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissing_minepoch, {
+			"Min Epoch", "ceph.msg.osd.pg.updatelogmissing.minepoch",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissing_pgtrimto, {
+			"PG Trim To", "ceph.msg.osd.pg.updatelogmissing.pgtrimto",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissing_pgrollforwardto, {
+			"PG Roll Forward To", "ceph.msg.osd.pg.updatelogmissing.pgrollforwardto",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_msg_osd_pg_updatelogmissingreply, {
+			"PG Update Log Missing Reply", "ceph.msg.osd.pg.updatelogmissingreply",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissingreply_mapepoch, {
+			"Map Epoch", "ceph.msg.osd.pg.updatelogmissingreply.mapepoch",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissingreply_pgid, {
+			"PG ID", "ceph.msg.osd.pg.updatelogmissingreply.pgid",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissingreply_from, {
+			"From Shard", "ceph.msg.osd.pg.updatelogmissingreply.from",
+			FT_UINT8, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissingreply_tid, {
+			"TID", "ceph.msg.osd.pg.updatelogmissingreply.tid",
+			FT_UINT64, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissingreply_minepoch, {
+			"Min Epoch", "ceph.msg.osd.pg.updatelogmissingreply.minepoch",
+			FT_UINT32, BASE_DEC, NULL, 0,
+			NULL, HFILL
+		} },
+		{ &hf_pg_updatelogmissingreply_lastcompleteondisk, {
+			"Last Complete On Disk", "ceph.msg.osd.pg.updatelogmissingreply.lastcompleteondisk",
+			FT_NONE, BASE_NONE, NULL, 0,
+			NULL, HFILL
+		} },
 		{ &hf_msg_client_caps, {
 			"Client Caps", "ceph.msg.client_caps",
 			FT_NONE, BASE_NONE, NULL, 0,
@@ -14559,6 +14748,8 @@ proto_register_ceph(void)
 		&ett_msg_pgstats_pgstat,
 		&ett_msg_pgstats_poolstat,
 		&ett_msg_osd_pg_create,
+		&ett_mgs_osd_pg_updatelogmissing,
+		&ett_mgs_osd_pg_updatelogmissingreply,
 		&ett_msg_osd_pg_create_mkpg,
 		&ett_msg_client_caps,
 		&ett_msg_client_caprel,
